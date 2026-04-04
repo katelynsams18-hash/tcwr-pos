@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TCWR Concession POS</title>
+<!-- FIXED: Proper Firebase CDN URLs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<!-- FIXED: Proper Google Fonts URL -->
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#1a3a2a;--green:#2d6a4f;--green-mid:#52b788;--green-light:#d8f3dc;--gold:#d4a017;--gold-light:#fdf3d7;--cream:#faf8f2;--gray:#f0ede6;--gray2:#e0ddd5;--gray3:#b8b4aa;--text:#1c1c1a;--text2:#6b6860;--white:#ffffff;--red:#b83232;--red-light:#fdf0ee;--amber:#c25a1a;--amber-light:#fdf0e6;--blue:#1a4f6b;--blue-light:#e6f2fb;--warn:#e67e22;--warn-light:#fef5ec;--shadow:0 1px 4px rgba(0,0,0,0.08);--shadow-md:0 4px 16px rgba(0,0,0,0.12);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;font-size:13px;}
+.header{background:var(--forest);padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:50;border-bottom:3px solid var(--gold);}
+.header-title{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--gold);letter-spacing:0.08em;line-height:1;}
+.header-sub{font-size:10px;color:rgba(255,255,255,0.7);letter-spacing:0.12em;text-transform:uppercase;margin-top:1px;}
+.header-spacer{flex:1;}
+.header-clock{font-family:'Bebas Neue',sans-serif;font-size:16px;color:#fff;letter-spacing:0.06em;line-height:1.3;}
+.header-date{font-size:10px;color:rgba(255,255,255,0.6);}
+.conn-badge{font-size:11px;padding:4px 12px;border-radius:99px;font-weight:600;margin-left:8px;}
+.conn-live{background:var(--green-mid);color:var(--forest);}
+.conn-connecting{background:#f9ca24;color:#6b4c00;}
+.conn-error{background:var(--red);color:#fff;}
+.tabs{background:var(--forest);display:flex;padding:0 24px;gap:2px;border-top:1px solid rgba(255,255,255,0.08);overflow-x:auto;}
+.tab{padding:10px 14px;font-size:11px;font-weight:600;cursor:pointer;color:rgba(255,255,255,0.65);border-bottom:3px solid transparent;transition:all 0.15s;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;}
+.tab:hover{color:rgba(255,255,255,0.9);}.tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.main{padding:20px 24px;max-width:1400px;margin:0 auto;}
+.panel{display:none;}.panel.active{display:block;}
+.register-grid{display:grid;grid-template-columns:1fr 390px;gap:20px;}
+.sh{display:flex;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
+.sh-title{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--forest);letter-spacing:0.06em;}
+.sh-spacer{flex:1;}
+.fsel{padding:6px 12px;border:1.5px solid var(--gray2);border-radius:8px;background:var(--white);font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);cursor:pointer;}
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
+.cat-tiles{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.cat-tile{padding:12px 22px;border-radius:10px;border:2px solid var(--gray2);background:var(--white);cursor:pointer;font-size:14px;font-weight:700;color:var(--text2);transition:all 0.15s;font-family:'DM Sans',sans-serif;}
+.cat-tile:hover{border-color:var(--green);color:var(--green);}
+.cat-tile.cat-active{background:var(--forest);color:var(--gold);border-color:var(--forest);}
+.menu-btn{background:var(--white);border:1.5px solid var(--gray2);border-radius:14px;padding:18px 14px;cursor:pointer;text-align:left;transition:all 0.12s;box-shadow:var(--shadow);position:relative;min-height:105px;}
+.menu-btn:hover{border-color:var(--green);transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.menu-btn:active{transform:scale(0.96);}
+.menu-btn.mb-disabled{opacity:0.38;cursor:not-allowed;pointer-events:none;}
+.menu-btn.mb-warn{border-color:var(--warn);}
+.warn-dot{position:absolute;top:10px;right:10px;width:9px;height:9px;border-radius:50%;background:var(--warn);}
+.mb-name{font-weight:700;font-size:15px;line-height:1.3;margin-bottom:6px;}
+.mb-price{font-size:18px;font-weight:700;color:var(--green);}
+.mb-can{font-size:12px;font-weight:600;margin-top:5px;}
+.can-ok{color:var(--green);}.can-low{color:var(--warn);}.can-none{color:var(--red);}
+.eod-pip{display:inline-block;font-size:9px;background:var(--gold-light);color:var(--gold);border:1px solid var(--gold);padding:1px 5px;border-radius:4px;margin-top:3px;font-weight:600;}
+.order-card{background:var(--white);border:1.5px solid var(--gray2);border-radius:16px;padding:18px;box-shadow:var(--shadow-md);position:sticky;top:112px;max-height:calc(100vh - 130px);display:flex;flex-direction:column;}
+.oc-title{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--forest);letter-spacing:0.06em;margin-bottom:8px;}
+.order-items{flex:1;overflow-y:auto;min-height:80px;}
+.order-empty{text-align:center;padding:28px 0;color:var(--text2);font-size:12px;font-style:italic;}
+.order-row{display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--gray);font-size:12px;}
+.order-row:last-child{border-bottom:none;}
+.qbtn{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--gray2);background:transparent;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:all 0.1s;}
+.qbtn:hover{background:var(--gray);border-color:var(--green);color:var(--green);}
+.oqty{min-width:20px;text-align:center;font-weight:700;}
+.oname{flex:1;font-weight:500;font-size:12px;}
+.oprice{font-weight:700;color:var(--forest);}
+.order-footer{margin-top:12px;border-top:1.5px solid var(--gray2);padding-top:12px;}
+.ol{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:3px 0;}
+.ol.discount{color:var(--amber);font-weight:600;}
+.order-total-row{display:flex;justify-content:space-between;font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--forest);letter-spacing:0.04em;margin-top:6px;}
+.pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0;}
+.pay-btn{padding:8px;border:1.5px solid var(--gray2);border-radius:8px;background:var(--gray);cursor:pointer;font-size:11px;font-weight:600;color:var(--text2);text-align:center;transition:all 0.12s;font-family:'DM Sans',sans-serif;}
+.pay-btn:hover{border-color:var(--green);color:var(--green);}
+.pay-btn.pay-active{background:var(--forest);color:var(--gold);border-color:var(--forest);}
+.pay-btn.pay-staff{background:var(--blue);color:#fff;border-color:var(--blue);}
+.btn{padding:8px 16px;border-radius:8px;border:1.5px solid var(--gray2);background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:var(--text);transition:all 0.12s;font-family:'DM Sans',sans-serif;}
+.btn:hover{background:var(--gray);}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-green:hover{background:var(--forest);}
+.btn-gold{background:var(--gold-light);color:var(--gold);border-color:var(--gold);}
+.btn-gold.eod-on{background:var(--gold);color:#fff;}
+.btn-red{background:var(--red-light);color:var(--red);border-color:var(--red);}
+.btn-sm{padding:5px 12px;font-size:11px;}
+.btn-row{display:flex;gap:8px;align-items:center;margin-top:10px;}
+.card{background:var(--white);border:1.5px solid var(--gray2);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin-bottom:18px;}
+.metrics{display:grid;gap:10px;margin-bottom:18px;}
+.m4{grid-template-columns:repeat(4,1fr);}.m6{grid-template-columns:repeat(6,1fr);}
+.metric{background:var(--gray);border-radius:10px;padding:14px 16px;}
+.metric-label{font-size:11px;color:var(--text2);font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:6px;}
+.metric-val{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:0.04em;color:var(--forest);line-height:1;}
+.mv-green{color:var(--green);}.mv-red{color:var(--red);}.mv-gold{color:var(--gold);}
+.pay-breakdown{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.pb-card{background:var(--forest);border-radius:10px;padding:12px 14px;}
+.pb-label{font-size:10px;color:rgba(255,255,255,0.75);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;}
+.pb-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;letter-spacing:0.04em;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{text-align:left;padding:8px 12px;background:var(--forest);color:#fff;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;}
+thead th:first-child{border-radius:8px 0 0 0;}thead th:last-child{border-radius:0 8px 0 0;}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--gray);color:var(--text);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}tbody tr:hover td{background:var(--gray);}
+.badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;}
+.b-green{background:var(--green-light);color:var(--forest);}.b-amber{background:var(--amber-light);color:var(--amber);}
+.b-red{background:var(--red-light);color:var(--red);}.b-gray{background:var(--gray2);color:var(--text2);}
+.b-blue{background:var(--blue-light);color:var(--blue);}.b-gold{background:var(--gold-light);color:var(--gold);}
+.b-forest{background:var(--forest);color:var(--green-mid);}.b-warn{background:var(--warn-light);color:var(--warn);}
+.mbar-wrap{width:70px;height:6px;background:var(--gray2);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:6px;}
+.mbar-fill{height:100%;border-radius:3px;}
+.form-group{margin-bottom:12px;}
+label{font-size:11px;color:var(--text2);font-weight:600;display:block;margin-bottom:4px;letter-spacing:0.03em;text-transform:uppercase;}
+input,select,textarea{width:100%;padding:9px 12px;border:1.5px solid var(--gray2);border-radius:8px;background:var(--white);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;transition:border-color 0.15s;}
+input:focus,select:focus{outline:none;border-color:var(--green);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.cb-row{display:flex;align-items:center;gap:8px;}
+.cb-row input{width:auto;}.cb-row label{margin:0;text-transform:none;font-size:12px;color:var(--text);font-weight:500;}
+.ing-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray);font-size:12px;flex-wrap:wrap;}
+.ing-row:last-child{border-bottom:none;}
+.ing-name{flex:1;font-weight:600;min-width:120px;}
+.ing-detail{font-size:11px;color:var(--text2);}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(3px);}
+.modal{background:var(--white);border-radius:16px;padding:24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-md);border-top:4px solid var(--gold);}
+.modal-wide{width:560px;}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--forest);letter-spacing:0.06em;margin-bottom:18px;}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--forest);color:#fff;padding:12px 20px;border-radius:10px;font-size:12px;font-weight:600;z-index:200;opacity:0;transform:translateY(8px);transition:all 0.2s;pointer-events:none;border-left:4px solid var(--gold);}
+.toast.show{opacity:1;transform:translateY(0);}
+.loading-screen{position:fixed;inset:0;background:var(--forest);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:300;transition:opacity 0.5s;}
+.loading-screen.gone{opacity:0;pointer-events:none;}
+.load-paw{font-size:40px;margin-bottom:12px;animation:bounce 1s ease-in-out infinite;}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.load-title{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--gold);letter-spacing:0.1em;}
+.load-sub{font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:0.15em;text-transform:uppercase;margin-top:4px;margin-bottom:28px;}
+.load-bar{width:180px;height:4px;background:rgba(255,255,255,0.1);border-radius:99px;overflow:hidden;}
+.load-fill{height:100%;background:var(--gold);border-radius:99px;animation:lf 1.4s ease-in-out infinite;}
+@keyframes lf{0%{width:0;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0;margin-left:100%}}
+@media(max-width:900px){.register-grid{grid-template-columns:1fr;}.m4,.m6{grid-template-columns:repeat(2,1fr);}.pay-breakdown{grid-template-columns:repeat(2,1fr);}.order-card{position:static;max-height:none;}.main{padding:14px 16px;}}
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="load-paw">🐾</div>
+  <div class="load-title">TCWR Concession</div>
+  <div class="load-sub">Turpentine Creek Wildlife Refuge</div>
+  <div class="load-bar"><div class="load-fill"></div></div>
+</div>
+
+<div class="header">
+  <span style="font-size:22px;">🐾</span>
+  <div>
+    <div class="header-title">TCWR Concession</div>
+    <div class="header-sub">Turpentine Creek Wildlife Refuge</div>
+  </div>
+  <div class="header-spacer"></div>
+  <div style="text-align:right;">
+    <div class="header-clock" id="hclock">--:--:-- --</div>
+    <div class="header-date" id="hdate">Loading...</div>
+  </div>
+  <span class="conn-badge conn-connecting" id="conn-status">Connecting...</span>
+</div>
+
+<div class="tabs" id="tab-bar">
+  <div class="tab active" data-tab="register">Register</div>
+  <div class="tab" data-tab="stock">Stock & Ingredients</div>
+  <div class="tab" data-tab="waste">Waste Log</div>
+  <div class="tab" data-tab="reports">Reports</div>
+  <div class="tab" data-tab="manage">Manage Items</div>
+</div>
+
+<div class="main">
+
+<!-- REGISTER -->
+<div class="panel active" id="tab-register">
+  <div class="register-grid">
+    <div>
+      <div class="cat-tiles" id="cat-tiles"></div>
+      <div id="low-alerts"></div>
+      <div class="menu-grid" id="menu-grid"></div>
+    </div>
+    <div class="order-card">
+      <div class="oc-title">Current Order</div>
+      <div style="font-size:11px;color:var(--text2);padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--gray2);" id="order-clock">Loading...</div>
+      <div class="order-items" id="order-list"><div class="order-empty">Tap items to add them</div></div>
+      <div class="order-footer">
+        <div class="ol discount" id="eod-line" style="display:none;"><span>25% EOD Discount</span><span id="eod-amt"></span></div>
+        <div class="ol"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+        <div class="order-total-row"><span>Total</span><span id="total">$0.00</span></div>
+        <div style="margin-top:10px;">
+          <div style="font-size:11px;color:var(--text2);font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:6px;">Payment type</div>
+          <div class="pay-grid">
+            <button class="pay-btn pay-active" id="pay-cash" data-pay="cash">💵 Cash</button>
+            <button class="pay-btn" id="pay-card" data-pay="card">💳 Card</button>
+            <button class="pay-btn" id="pay-staffCash" data-pay="staffCash">👤 Staff Cash</button>
+            <button class="pay-btn" id="pay-staffCard" data-pay="staffCard">👤 Staff Card</button>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-gold btn-sm" id="eod-btn">EOD Disc.</button>
+          <div style="flex:1"></div>
+          <button class="btn btn-sm" id="clear-btn">Clear</button>
+          <button class="btn btn-green" id="checkout-btn">Checkout →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STOCK & INGREDIENTS -->
+<div class="panel" id="tab-stock">
+  <div class="sh">
+    <div class="sh-title">Stock & Ingredients</div>
+    <div class="sh-spacer"></div>
+    <button class="btn btn-green btn-sm" id="add-stock-btn">+ Add Item/Ingredient</button>
+  </div>
+  <p style="font-size:12px;color:var(--text2);margin-bottom:16px;">Everything you stock — raw ingredients for recipes AND pre-made items like chips, ice cream, candy. All tracked the same way.</p>
+  <div id="stock-alerts"></div>
+  <div class="card"><div id="stock-list"><p style="color:var(--text2);font-size:12px;padding:12px 0;">Loading...</p></div></div>
+</div>
+
+<!-- WASTE -->
+<div class="panel" id="tab-waste">
+  <div class="sh"><div class="sh-title">Waste Log</div><div class="sh-spacer"></div><button class="btn btn-green btn-sm" id="log-waste-btn">+ Log Waste</button></div>
+  <div class="metrics m4" style="margin-bottom:18px;">
+    <div class="metric"><div class="metric-label">Items wasted</div><div class="metric-val" id="w-qty">0</div></div>
+    <div class="metric"><div class="metric-label">Waste value</div><div class="metric-val mv-red" id="w-val">$0.00</div></div>
+    <div class="metric"><div class="metric-label">Most wasted</div><div class="metric-val" style="font-size:15px;padding-top:4px;" id="w-top">—</div></div>
+  </div>
+  <div class="card"><div id="waste-list"><p style="color:var(--text2);font-size:12px;padding:12px 0;">No waste logged yet.</p></div></div>
+</div>
+
+<!-- REPORTS -->
+<div class="panel" id="tab-reports">
+  <div class="sh">
+    <div class="sh-title">Reports</div><div class="sh-spacer"></div>
+    <select class="fsel" id="report-range">
+      <option value="today">Today</option><option value="week">This week</option><option value="all" selected>All time</option>
+    </select>
+    <button class="btn btn-sm" id="export-btn">Export CSV</button>
+    <button class="btn btn-sm btn-gold" id="recalc-btn">🔄 Recalculate Costs</button>
+  </div>
+  <div class="metrics m6">
+    <div class="metric"><div class="metric-label">Total Revenue</div><div class="metric-val" id="r-revenue">$0.00</div></div>
+    <div class="metric"><div class="metric-label">Est. COGS</div><div class="metric-val mv-red" id="r-cogs">$0.00</div></div>
+    <div class="metric"><div class="metric-label">Gross Profit</div><div class="metric-val mv-green" id="r-profit">$0.00</div></div>
+    <div class="metric"><div class="metric-label">Margin %</div><div class="metric-val mv-gold" id="r-margin">0%</div></div>
+    <div class="metric"><div class="metric-label">Transactions</div><div class="metric-val" id="r-txns">0</div></div>
+    <div class="metric"><div class="metric-label">Avg Order</div><div class="metric-val" id="r-avg">$0.00</div></div>
+  </div>
+  <div class="pay-breakdown">
+    <div class="pb-card"><div class="pb-label">💵 Cash</div><div class="pb-val" id="r-cash">$0.00</div></div>
+    <div class="pb-card"><div class="pb-label">💳 Card</div><div class="pb-val" id="r-card">$0.00</div></div>
+    <div class="pb-card"><div class="pb-label">👤 Staff Cash</div><div class="pb-val" id="r-scash">$0.00</div></div>
+    <div class="pb-card"><div class="pb-label">👤 Staff Card</div><div class="pb-val" id="r-scard">$0.00</div></div>
+  </div>
+  <div class="card" style="margin-bottom:18px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--forest);letter-spacing:0.06em;margin-bottom:14px;">Item Breakdown</div>
+    <div style="overflow-x:auto;">
+      <table><thead><tr>
+        <th>Item</th>
+        <th style="cursor:pointer;" data-sort="qty"><span id="sh-qty">Qty Sold</span></th>
+        <th style="cursor:pointer;" data-sort="revenue"><span id="sh-revenue">Revenue ↓</span></th>
+        <th>Est. Cost</th>
+        <th style="cursor:pointer;" data-sort="profit"><span id="sh-profit">Profit</span></th>
+        <th style="cursor:pointer;" data-sort="margin"><span id="sh-margin">Margin %</span></th>
+      </tr></thead><tbody id="r-item-table"></tbody></table>
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--forest);letter-spacing:0.06em;margin-bottom:14px;">Transaction Log</div>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+      <table><thead><tr><th>Time</th><th>Date</th><th>Items</th><th>Pay Type</th><th>EOD</th><th>Revenue</th><th>Est. Profit</th></tr></thead>
+      <tbody id="r-log"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE ITEMS -->
+<div class="panel" id="tab-manage">
+  <div class="sh">
+    <div class="sh-title">Manage Menu Items</div><div class="sh-spacer"></div>
+    <button class="btn btn-green btn-sm" id="add-item-btn">+ Add Menu Item</button>
+  </div>
+  <div class="card"><div id="manage-list"><p style="color:var(--text2);font-size:12px;padding:12px 0;">Loading...</p></div></div>
+</div>
+
+</div>
+
+<div id="modal-container"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// FIREBASE CONFIG
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyD3XIiCcVntvcq9gYzJ1_-SCy8HYFgNNeY",
+  authDomain: "twcr-pos.firebaseapp.com",
+  projectId: "twcr-pos",
+  storageBucket: "twcr-pos.firebasestorage.app",
+  messagingSenderId: "533785199498",
+  appId: "1:533785199498:web:f586f3b54f0cfd64dffe73"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ============================================================
+// HELPER FUNCTIONS - DEFINED FIRST
+// ============================================================
+const $ = id => document.getElementById(id);
+const fmt = n => '$' + (Math.round((n || 0) * 100) / 100).toFixed(2);
+const pct = n => Math.round(n || 0) + '%';
+
+// ============================================================
+// STATE
+// ============================================================
+let items = [];
+let transactions = [];
+let wasteLog = [];
+let stockItems = [];
+let recipes = {};
+let order = [];
+let eodActive = false;
+let selectedPay = 'cash';
+let itemSortCol = 'revenue';
+let itemSortDir = 'desc';
+let currentRestockId = null;
+let currentCat = 'all';
+
+// ============================================================
+// CLOCK - Uses document.getElementById directly to be safe
+// ============================================================
+function updateClock() {
+  const now = new Date();
+  const hc = document.getElementById('hclock');
+  const hd = document.getElementById('hdate');
+  const oc = document.getElementById('order-clock');
+  if (hc) hc.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if (hd) hd.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  if (oc) oc.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) + ' · ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ============================================================
+// CONNECTION STATUS
+// ============================================================
+function setConn(s) {
+  const el = $('conn-status');
+  if (!el) return;
+  el.className = 'conn-badge';
+  if (s === 'live') { el.classList.add('conn-live'); el.textContent = '● Live'; }
+  else if (s === 'connecting') { el.classList.add('conn-connecting'); el.textContent = 'Connecting...'; }
+  else { el.classList.add('conn-error'); el.textContent = 'Offline'; }
+}
+
+function hideLoading() {
+  setTimeout(() => {
+    const el = $('loading');
+    if (el) el.classList.add('gone');
+  }, 700);
+}
+
+function showToast(msg) {
+  const t = $('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tabName) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const tabEl = document.querySelector('.tab[data-tab="' + tabName + '"]');
+  const panelEl = $('tab-' + tabName);
+  if (tabEl) tabEl.classList.add('active');
+  if (panelEl) panelEl.classList.add('active');
+}
+
+// ============================================================
+// FIRESTORE LISTENERS
+// ============================================================
+function startListeners() {
+  setConn('connecting');
+
+  db.collection('items').orderBy('name').onSnapshot(snap => {
+    items = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+    renderMenu();
+    renderManage();
+    setConn('live');
+    hideLoading();
+  }, err => {
+    console.error('Items error:', err);
+    setConn('error');
+    hideLoading();
+  });
+
+  db.collection('stockItems').orderBy('name').onSnapshot(snap => {
+    stockItems = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+    renderStock();
+    renderMenu();
+  }, err => console.error('Stock error:', err));
+
+  db.collection('transactions').orderBy('date', 'desc').onSnapshot(snap => {
+    transactions = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+    renderReports();
+  }, err => console.error('Transactions error:', err));
+
+  db.collection('waste').orderBy('date', 'desc').onSnapshot(snap => {
+    wasteLog = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+    renderWaste();
+  }, err => console.error('Waste error:', err));
+
+  db.collection('recipes').onSnapshot(snap => {
+    recipes = {};
+    snap.docs.forEach(d => { recipes[d.id] = d.data().ingredients || []; });
+    renderMenu();
+  }, err => console.error('Recipes error:', err));
+}
+
+// ============================================================
+// CATEGORY TILES
+// ============================================================
+function renderCatTiles() {
+  const cats = ['all', 'Food', 'Drinks', 'Snacks', 'Custom'];
+  const icons = { all: '🍽️', Food: '🌭', Drinks: '🥤', Snacks: '🍬', Custom: '⭐' };
+  const container = $('cat-tiles');
+  if (!container) return;
+  container.innerHTML = cats.map(c => '<button class="cat-tile' + (currentCat === c ? ' cat-active' : '') + '" data-cat="' + c + '">' + icons[c] + ' ' + (c === 'all' ? 'All' : c) + '</button>').join('');
+}
+
+function setCat(cat) {
+  currentCat = cat;
+  renderCatTiles();
+  renderMenu();
+}
+
+// ============================================================
+// MENU RENDERING
+// ============================================================
+function canMake(item) {
+  if (!item.useRecipe) {
+    const si = stockItems.find(s => s.name === item.stockName);
+    return si ? si.qty : 999;
+  }
+  const rec = recipes[item.fid] || [];
+  if (rec.length === 0) return 999;
+  let minCanMake = Infinity;
+  for (const ing of rec) {
+    const si = stockItems.find(s => s.fid === ing.stockId);
+    if (!si || si.qty < ing.qty) return 0;
+    minCanMake = Math.min(minCanMake, Math.floor(si.qty / ing.qty));
+  }
+  return minCanMake === Infinity ? 999 : minCanMake;
+}
+
+function renderMenu() {
+  renderCatTiles();
+  const grid = $('menu-grid');
+  if (!grid) return;
+  
+  const filtered = items.filter(i => {
+    if (i.hidden) return false;
+    if (currentCat === 'all') return true;
+    return i.category === currentCat;
+  });
+
+  grid.innerHTML = filtered.map(i => {
+    const can = canMake(i);
+    const disabled = can <= 0;
+    const warn = can > 0 && can <= 5;
+    const isEOD = i.eodEligible && eodActive;
+    return '<button class="menu-btn' + (disabled ? ' mb-disabled' : '') + (warn ? ' mb-warn' : '') + '" data-id="' + i.fid + '">' +
+      (warn ? '<div class="warn-dot"></div>' : '') +
+      '<div class="mb-name">' + i.name + '</div>' +
+      '<div class="mb-price">' + fmt(i.price) + '</div>' +
+      '<div class="mb-can ' + (can > 5 ? 'can-ok' : can > 0 ? 'can-low' : 'can-none') + '">' + (can > 99 ? '99+' : can) + ' avail</div>' +
+      (isEOD ? '<div class="eod-pip">EOD 25% OFF</div>' : '') +
+    '</button>';
+  }).join('');
+}
+
+// ============================================================
+// ORDER MANAGEMENT
+// ============================================================
+function addToOrder(itemId) {
+  const item = items.find(i => i.fid === itemId);
+  if (!item) return;
+  if (canMake(item) <= 0) return;
+
+  const existing = order.find(o => o.fid === itemId);
+  if (existing) {
+    if (existing.qty < canMake(item)) existing.qty++;
+  } else {
+    order.push({ fid: itemId, name: item.name, price: item.price, qty: 1, cost: item.cost || 0, eodEligible: item.eodEligible });
+  }
+  renderOrder();
+}
+
+function updateQty(fid, delta) {
+  const idx = order.findIndex(o => o.fid === fid);
+  if (idx === -1) return;
+  order[idx].qty += delta;
+  if (order[idx].qty <= 0) order.splice(idx, 1);
+  renderOrder();
+}
+
+function renderOrder() {
+  const list = $('order-list');
+  if (!list) return;
+
+  if (order.length === 0) {
+    list.innerHTML = '<div class="order-empty">Tap items to add them</div>';
+    $('subtotal').textContent = '$0.00';
+    $('total').textContent = '$0.00';
+    $('eod-line').style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = order.map(o => '<div class="order-row">' +
+    '<button class="qbtn" data-fid="' + o.fid + '" data-delta="-1">−</button>' +
+    '<span class="oqty">' + o.qty + '</span>' +
+    '<button class="qbtn" data-fid="' + o.fid + '" data-delta="1">+</button>' +
+    '<span class="oname">' + o.name + (o.eodEligible && eodActive ? ' 🏷️' : '') + '</span>' +
+    '<span class="oprice">' + fmt(o.price * o.qty) + '</span>' +
+  '</div>').join('');
+
+  let sub = order.reduce((s, o) => s + o.price * o.qty, 0);
+  let eodDiscount = 0;
+  
+  if (eodActive) {
+    eodDiscount = order.filter(o => o.eodEligible).reduce((s, o) => s + o.price * o.qty * 0.25, 0);
+  }
+
+  const isStaff = selectedPay === 'staffCash' || selectedPay === 'staffCard';
+  let staffDiscount = isStaff ? (sub - eodDiscount) * 0.5 : 0;
+  let total = sub - eodDiscount - staffDiscount;
+
+  $('subtotal').textContent = fmt(sub);
+  $('eod-line').style.display = eodActive && eodDiscount > 0 ? 'flex' : 'none';
+  $('eod-amt').textContent = '-' + fmt(eodDiscount);
+  $('total').textContent = fmt(total);
+}
+
+function clearOrder() {
+  order = [];
+  renderOrder();
+}
+
+function selectPay(type) {
+  selectedPay = type;
+  document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('pay-active'));
+  const btn = $('pay-' + type);
+  if (btn) btn.classList.add('pay-active');
+  renderOrder();
+}
+
+function toggleEOD() {
+  eodActive = !eodActive;
+  const btn = $('eod-btn');
+  if (btn) btn.classList.toggle('eod-on', eodActive);
+  renderMenu();
+  renderOrder();
+}
+
+// ============================================================
+// CHECKOUT
+// ============================================================
+async function checkout() {
+  if (order.length === 0) return;
+
+  let sub = order.reduce((s, o) => s + o.price * o.qty, 0);
+  let eodDiscount = 0;
+  if (eodActive) {
+    eodDiscount = order.filter(o => o.eodEligible).reduce((s, o) => s + o.price * o.qty * 0.25, 0);
+  }
+  const isStaff = selectedPay === 'staffCash' || selectedPay === 'staffCard';
+  let staffDiscount = isStaff ? (sub - eodDiscount) * 0.5 : 0;
+  let total = sub - eodDiscount - staffDiscount;
+  let totalCost = order.reduce((s, o) => s + (o.cost || 0) * o.qty, 0);
+
+  const txn = {
+    date: firebase.firestore.Timestamp.now(),
+    items: order.map(o => ({ fid: o.fid, name: o.name, qty: o.qty, price: o.price, cost: o.cost || 0 })),
+    payType: selectedPay,
+    eodApplied: eodActive && eodDiscount > 0,
+    subtotal: sub,
+    eodDiscount,
+    staffDiscount,
+    total,
+    totalCost
+  };
+
+  try {
+    await db.collection('transactions').add(txn);
+
+    // Deduct stock
+    for (const o of order) {
+      const item = items.find(i => i.fid === o.fid);
+      if (!item) continue;
+      if (!item.useRecipe) {
+        const si = stockItems.find(s => s.name === item.stockName);
+        if (si) await db.collection('stockItems').doc(si.fid).update({ qty: firebase.firestore.FieldValue.increment(-o.qty) });
+      } else {
+        const rec = recipes[item.fid] || [];
+        for (const ing of rec) {
+          await db.collection('stockItems').doc(ing.stockId).update({ qty: firebase.firestore.FieldValue.increment(-ing.qty * o.qty) });
+        }
+      }
+    }
+
+    showToast('Sale recorded! ' + fmt(total));
+    order = [];
+    renderOrder();
+  } catch (e) {
+    console.error(e);
+    showToast('Error saving sale');
+  }
+}
+
+// ============================================================
+// STOCK RENDERING
+// ============================================================
+function renderStock() {
+  const list = $('stock-list');
+  if (!list) return;
+
+  if (stockItems.length === 0) {
+    list.innerHTML = '<p style="color:var(--text2);font-size:12px;padding:12px 0;">No stock items yet.</p>';
+    return;
+  }
+
+  list.innerHTML = stockItems.map(s => {
+    const avgCost = s.totalSpent && s.totalQtyAdded ? (s.totalSpent / s.totalQtyAdded).toFixed(2) : '?';
+    const badge = s.qty > 10 ? 'b-green' : s.qty > 0 ? 'b-amber' : 'b-red';
+    return '<div class="ing-row">' +
+      '<span class="ing-name">' + s.name + '</span>' +
+      '<span class="ing-detail">' + s.unit + '</span>' +
+      '<span class="ing-detail">avg: $' + avgCost + '/' + s.unit + '</span>' +
+      '<span class="badge ' + badge + '">' + s.qty + ' ' + s.unit + '</span>' +
+      '<button class="btn btn-sm" data-restock="' + s.fid + '">+ Restock</button>' +
+      '<button class="btn btn-sm" data-editstock="' + s.fid + '">Edit</button>' +
+    '</div>';
+  }).join('');
+}
+
+// ============================================================
+// WASTE RENDERING
+// ============================================================
+function renderWaste() {
+  const list = $('waste-list');
+  if (!list) return;
+
+  const wq = $('w-qty');
+  const wv = $('w-val');
+  const wt = $('w-top');
+
+  if (wasteLog.length === 0) {
+    list.innerHTML = '<p style="color:var(--text2);font-size:12px;padding:12px 0;">No waste logged yet.</p>';
+    if (wq) wq.textContent = '0';
+    if (wv) wv.textContent = '$0.00';
+    if (wt) wt.textContent = '—';
+    return;
+  }
+
+  let totalQty = 0, totalVal = 0;
+  const byItem = {};
+  wasteLog.forEach(w => {
+    totalQty += w.qty;
+    totalVal += w.value || 0;
+    byItem[w.itemName] = (byItem[w.itemName] || 0) + w.qty;
+  });
+
+  const topItem = Object.entries(byItem).sort((a, b) => b[1] - a[1])[0];
+
+  if (wq) wq.textContent = totalQty;
+  if (wv) wv.textContent = fmt(totalVal);
+  if (wt) wt.textContent = topItem ? topItem[0] : '—';
+
+  list.innerHTML = wasteLog.slice(0, 50).map(w => {
+    const d = w.date && w.date.toDate ? w.date.toDate() : new Date(w.date);
+    return '<div class="ing-row">' +
+      '<span class="ing-name">' + w.itemName + '</span>' +
+      '<span class="badge b-red">' + w.qty + ' wasted</span>' +
+      '<span class="ing-detail">' + fmt(w.value) + '</span>' +
+      '<span class="ing-detail">' + d.toLocaleDateString() + '</span>' +
+      '<span class="ing-detail">' + (w.reason || '') + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+// ============================================================
+// REPORTS RENDERING
+// ============================================================
+function renderReports() {
+  const range = $('report-range') ? $('report-range').value : 'all';
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfDay);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+
+  let filtered = transactions;
+  if (range === 'today') {
+    filtered = transactions.filter(t => {
+      const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+      return d >= startOfDay;
+    });
+  } else if (range === 'week') {
+    filtered = transactions.filter(t => {
+      const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+      return d >= startOfWeek;
+    });
+  }
+
+  let revenue = 0, cogs = 0, cash = 0, card = 0, scash = 0, scard = 0;
+  const itemStats = {};
+
+  filtered.forEach(t => {
+    revenue += t.total || 0;
+    cogs += t.totalCost || 0;
+    if (t.payType === 'cash') cash += t.total;
+    else if (t.payType === 'card') card += t.total;
+    else if (t.payType === 'staffCash') scash += t.total;
+    else if (t.payType === 'staffCard') scard += t.total;
+
+    (t.items || []).forEach(i => {
+      if (!itemStats[i.name]) itemStats[i.name] = { qty: 0, rev: 0, cost: 0 };
+      const isStaff = t.payType === 'staffCash' || t.payType === 'staffCard';
+      const itemRev = i.price * i.qty * (isStaff ? 0.5 : 1) * (t.eodApplied && items.find(x => x.name === i.name && x.eodEligible) ? 0.75 : 1);
+      itemStats[i.name].qty += i.qty;
+      itemStats[i.name].rev += itemRev;
+      itemStats[i.name].cost += (i.cost || 0) * i.qty;
+    });
+  });
+
+  const profit = revenue - cogs;
+  const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+  const avg = filtered.length > 0 ? revenue / filtered.length : 0;
+
+  $('r-revenue').textContent = fmt(revenue);
+  $('r-cogs').textContent = fmt(cogs);
+  $('r-profit').textContent = fmt(profit);
+  $('r-margin').textContent = pct(margin);
+  $('r-txns').textContent = filtered.length;
+  $('r-avg').textContent = fmt(avg);
+  $('r-cash').textContent = fmt(cash);
+  $('r-card').textContent = fmt(card);
+  $('r-scash').textContent = fmt(scash);
+  $('r-scard').textContent = fmt(scard);
+
+  // Item breakdown table
+  let itemArr = Object.entries(itemStats).map(function(entry) {
+    const name = entry[0];
+    const s = entry[1];
+    return {
+      name: name,
+      qty: s.qty,
+      revenue: s.rev,
+      cost: s.cost,
+      profit: s.rev - s.cost,
+      margin: s.rev > 0 ? ((s.rev - s.cost) / s.rev) * 100 : 0
+    };
+  });
+
+  itemArr.sort(function(a, b) {
+    const dir = itemSortDir === 'desc' ? -1 : 1;
+    return (a[itemSortCol] - b[itemSortCol]) * dir;
+  });
+
+  const table = $('r-item-table');
+  if (table) {
+    table.innerHTML = itemArr.map(function(i) {
+      const mcolor = i.margin >= 60 ? 'var(--green)' : i.margin >= 50 ? 'var(--gold)' : 'var(--red)';
+      return '<tr>' +
+        '<td style="font-weight:600;">' + i.name + '</td>' +
+        '<td><span class="badge b-forest">' + i.qty + '</span></td>' +
+        '<td style="font-weight:600;">' + fmt(i.revenue) + '</td>' +
+        '<td style="color:var(--red);">' + fmt(i.cost) + '</td>' +
+        '<td style="color:var(--green);font-weight:600;">' + fmt(i.profit) + '</td>' +
+        '<td><span style="font-weight:700;color:' + mcolor + ';">' + pct(i.margin) + '</span>' +
+        '<div class="mbar-wrap"><div class="mbar-fill" style="width:' + Math.min(i.margin, 100) + '%;background:' + mcolor + '"></div></div></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // Update sort headers
+  ['qty', 'revenue', 'profit', 'margin'].forEach(function(col) {
+    const el = $('sh-' + col);
+    if (el) el.textContent = col.charAt(0).toUpperCase() + col.slice(1) + (itemSortCol === col ? (itemSortDir === 'desc' ? ' ↓' : ' ↑') : '');
+  });
+
+  // Transaction log
+  const log = $('r-log');
+  if (log) {
+    const dayMap = {};
+    let dayNum = 1;
+    transactions.slice().reverse().forEach(function(t) {
+      const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+      const key = d.toDateString();
+      if (!dayMap[key]) dayMap[key] = dayNum++;
+    });
+
+    log.innerHTML = filtered.slice(0, 100).map(function(t) {
+      const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+      const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const day = 'Day ' + (dayMap[d.toDateString()] || '?');
+      const itemStr = (t.items || []).map(function(i) { return i.qty + '× ' + i.name; }).join(', ');
+      const payBadge = { cash: 'b-forest', card: 'b-forest', staffCash: 'b-blue', staffCard: 'b-blue' }[t.payType] || 'b-gray';
+      const payLabel = { cash: '💵 Cash', card: '💳 Card', staffCash: '👤 S.Cash', staffCard: '👤 S.Card' }[t.payType] || t.payType;
+      const profit = (t.total || 0) - (t.totalCost || 0);
+      return '<tr>' +
+        '<td style="white-space:nowrap;">' + time + '</td>' +
+        '<td style="white-space:nowrap;">' + day + '</td>' +
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;">' + itemStr + '</td>' +
+        '<td><span class="badge ' + payBadge + '">' + payLabel + '</span></td>' +
+        '<td>' + (t.eodApplied ? '🏷️' : '—') + '</td>' +
+        '<td style="font-weight:700;">' + fmt(t.total) + '</td>' +
+        '<td style="color:var(--green);font-weight:600;">' + fmt(profit) + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+}
+
+function sortItems(col) {
+  if (itemSortCol === col) {
+    itemSortDir = itemSortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    itemSortCol = col;
+    itemSortDir = 'desc';
+  }
+  renderReports();
+}
+
+// ============================================================
+// MANAGE ITEMS RENDERING
+// ============================================================
+function renderManage() {
+  const list = $('manage-list');
+  if (!list) return;
+
+  if (items.length === 0) {
+    list.innerHTML = '<p style="color:var(--text2);font-size:12px;padding:12px 0;">No items yet.</p>';
+    return;
+  }
+
+  list.innerHTML = items.map(function(i) {
+    const margin = i.price > 0 && i.cost > 0 ? Math.round(((i.price - i.cost) / i.price) * 100) : 0;
+    const marginColor = margin >= 60 ? 'var(--green)' : margin >= 50 ? 'var(--gold)' : 'var(--red)';
+    const rec = recipes[i.fid] || [];
+    const recipeInfo = i.useRecipe ? (rec.length + ' ingredients') : (i.stockName || 'No stock link');
+    
+    return '<div class="ing-row">' +
+      '<span class="ing-name">' + i.name + (i.hidden ? ' <span style="color:var(--text2);">(hidden)</span>' : '') + '</span>' +
+      '<span class="badge b-gray">' + i.category + '</span>' +
+      '<span class="ing-detail" style="font-weight:600;color:var(--green);">' + fmt(i.price) + '</span>' +
+      '<span class="ing-detail">Cost: ' + fmt(i.cost || 0) + '</span>' +
+      '<span class="ing-detail" style="color:' + marginColor + ';font-weight:600;">' + margin + '%</span>' +
+      '<span class="ing-detail" style="font-size:10px;">' + recipeInfo + '</span>' +
+      (i.eodEligible ? '<span class="badge b-gold">EOD</span>' : '') +
+      '<button class="btn btn-sm" data-edititem="' + i.fid + '">Edit</button>' +
+      '<button class="btn btn-sm" data-togglehide="' + i.fid + '">' + (i.hidden ? 'Show' : 'Hide') + '</button>' +
+    '</div>';
+  }).join('');
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(html) {
+  $('modal-container').innerHTML = '<div class="modal-bg" id="modal-bg">' + html + '</div>';
+}
+
+function closeModal() {
+  $('modal-container').innerHTML = '';
+}
+
+// Restock modal
+function openRestock(stockId) {
+  currentRestockId = stockId;
+  const si = stockItems.find(function(s) { return s.fid === stockId; });
+  if (!si) return;
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Restock: ' + si.name + '</div>' +
+    '<div class="form-group"><label>Quantity to add (' + si.unit + ')</label><input type="number" id="restock-qty" min="0" step="any"></div>' +
+    '<div class="form-group"><label>Total cost paid ($)</label><input type="number" id="restock-cost" min="0" step="0.01"></div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-save">Add Stock</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function saveRestock() {
+  const qty = parseFloat($('restock-qty') ? $('restock-qty').value : 0) || 0;
+  const cost = parseFloat($('restock-cost') ? $('restock-cost').value : 0) || 0;
+  if (qty <= 0) return;
+
+  try {
+    await db.collection('stockItems').doc(currentRestockId).update({
+      qty: firebase.firestore.FieldValue.increment(qty),
+      totalSpent: firebase.firestore.FieldValue.increment(cost),
+      totalQtyAdded: firebase.firestore.FieldValue.increment(qty)
+    });
+    showToast('Stock updated!');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error updating stock');
+  }
+}
+
+// Edit stock item modal
+function openEditStock(stockId) {
+  const si = stockItems.find(function(s) { return s.fid === stockId; });
+  if (!si) return;
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Edit: ' + si.name + '</div>' +
+    '<div class="form-group"><label>Name</label><input type="text" id="edit-stock-name" value="' + si.name + '"></div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Unit</label><input type="text" id="edit-stock-unit" value="' + si.unit + '"></div>' +
+      '<div class="form-group"><label>Current Qty</label><input type="number" id="edit-stock-qty" value="' + si.qty + '" step="any"></div>' +
+    '</div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn btn-red" id="modal-delete-stock" data-id="' + stockId + '">Delete</button>' +
+      '<div style="flex:1"></div>' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-update-stock" data-id="' + stockId + '">Save Changes</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function saveEditStock(stockId) {
+  const name = $('edit-stock-name') ? $('edit-stock-name').value.trim() : '';
+  const unit = $('edit-stock-unit') ? $('edit-stock-unit').value.trim() : 'each';
+  const qty = parseFloat($('edit-stock-qty') ? $('edit-stock-qty').value : 0) || 0;
+  if (!name) return;
+
+  try {
+    await db.collection('stockItems').doc(stockId).update({ name: name, unit: unit, qty: qty });
+    showToast('Stock item updated!');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error updating stock');
+  }
+}
+
+async function deleteStock(stockId) {
+  if (!confirm('Delete this stock item? This cannot be undone.')) return;
+  try {
+    await db.collection('stockItems').doc(stockId).delete();
+    showToast('Stock item deleted');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error deleting');
+  }
+}
+
+// Add stock item modal
+function openAddStock() {
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Add Stock Item</div>' +
+    '<div class="form-group"><label>Name</label><input type="text" id="stock-name"></div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Unit (e.g. each, oz, slice)</label><input type="text" id="stock-unit" value="each"></div>' +
+      '<div class="form-group"><label>Starting qty</label><input type="number" id="stock-qty" min="0" step="any" value="0"></div>' +
+    '</div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-save-stock">Add Item</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function saveAddStock() {
+  const name = $('stock-name') ? $('stock-name').value.trim() : '';
+  const unit = $('stock-unit') ? $('stock-unit').value.trim() : 'each';
+  const qty = parseFloat($('stock-qty') ? $('stock-qty').value : 0) || 0;
+  if (!name) return;
+
+  try {
+    await db.collection('stockItems').add({ name: name, unit: unit, qty: qty, totalSpent: 0, totalQtyAdded: qty });
+    showToast('Stock item added!');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error adding stock');
+  }
+}
+
+// Waste modal
+function openWasteModal() {
+  const itemOpts = items.filter(function(i) { return !i.hidden; }).map(function(i) {
+    return '<option value="' + i.fid + '">' + i.name + '</option>';
+  }).join('');
+  const stockOpts = stockItems.map(function(s) {
+    return '<option value="' + s.fid + '">' + s.name + ' (' + s.unit + ')</option>';
+  }).join('');
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Log Waste</div>' +
+    '<div class="form-group"><label>Waste Type</label>' +
+      '<select id="waste-type" onchange="toggleWasteType()">' +
+        '<option value="item">Menu Item (finished product)</option>' +
+        '<option value="stock">Stock/Ingredient (raw)</option>' +
+      '</select>' +
+    '</div>' +
+    '<div id="waste-item-section">' +
+      '<div class="form-group"><label>Menu Item</label><select id="waste-item">' + itemOpts + '</select></div>' +
+      '<div class="form-group"><label>Quantity</label><input type="number" id="waste-qty" min="1" value="1"></div>' +
+    '</div>' +
+    '<div id="waste-stock-section" style="display:none;">' +
+      '<div class="form-group"><label>Stock Item</label><select id="waste-stock">' + stockOpts + '</select></div>' +
+      '<div class="form-group"><label>Amount</label><input type="number" id="waste-stock-qty" min="0" step="any" value="1"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Reason</label><input type="text" id="waste-reason" placeholder="e.g. dropped, expired, burnt"></div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-red" id="modal-save-waste">Log Waste</button>' +
+    '</div>' +
+  '</div>');
+}
+
+function toggleWasteType() {
+  const type = $('waste-type') ? $('waste-type').value : 'item';
+  $('waste-item-section').style.display = type === 'item' ? 'block' : 'none';
+  $('waste-stock-section').style.display = type === 'stock' ? 'block' : 'none';
+}
+
+async function saveWaste() {
+  const wasteType = $('waste-type') ? $('waste-type').value : 'item';
+  const reason = $('waste-reason') ? $('waste-reason').value.trim() : '';
+
+  try {
+    if (wasteType === 'item') {
+      const itemId = $('waste-item') ? $('waste-item').value : '';
+      const qty = parseInt($('waste-qty') ? $('waste-qty').value : 1) || 1;
+      const item = items.find(function(i) { return i.fid === itemId; });
+      if (!item) return;
+
+      await db.collection('waste').add({
+        itemId: itemId,
+        itemName: item.name,
+        qty: qty,
+        value: (item.cost || 0) * qty,
+        reason: reason,
+        date: firebase.firestore.Timestamp.now(),
+        type: 'item'
+      });
+
+      // Deduct from stock
+      if (!item.useRecipe) {
+        const si = stockItems.find(function(s) { return s.name === item.stockName; });
+        if (si) await db.collection('stockItems').doc(si.fid).update({ qty: firebase.firestore.FieldValue.increment(-qty) });
+      } else {
+        const rec = recipes[item.fid] || [];
+        for (const ing of rec) {
+          await db.collection('stockItems').doc(ing.stockId).update({ qty: firebase.firestore.FieldValue.increment(-ing.qty * qty) });
+        }
+      }
+    } else {
+      // Stock/ingredient waste
+      const stockId = $('waste-stock') ? $('waste-stock').value : '';
+      const qty = parseFloat($('waste-stock-qty') ? $('waste-stock-qty').value : 1) || 1;
+      const si = stockItems.find(function(s) { return s.fid === stockId; });
+      if (!si) return;
+
+      const avgCost = si.totalSpent && si.totalQtyAdded ? si.totalSpent / si.totalQtyAdded : 0;
+
+      await db.collection('waste').add({
+        stockId: stockId,
+        itemName: si.name + ' (' + qty + ' ' + si.unit + ')',
+        qty: qty,
+        value: avgCost * qty,
+        reason: reason,
+        date: firebase.firestore.Timestamp.now(),
+        type: 'stock'
+      });
+
+      await db.collection('stockItems').doc(stockId).update({ qty: firebase.firestore.FieldValue.increment(-qty) });
+    }
+
+    showToast('Waste logged');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error logging waste');
+  }
+}
+
+// Edit Menu Item modal
+function openEditItem(itemId) {
+  const item = items.find(function(i) { return i.fid === itemId; });
+  if (!item) return;
+  
+  const catOptions = ['Food', 'Drinks', 'Snacks', 'Custom'].map(function(c) {
+    return '<option value="' + c + '"' + (item.category === c ? ' selected' : '') + '>' + c + '</option>';
+  }).join('');
+  
+  const stockOptions = stockItems.map(function(s) {
+    return '<option value="' + s.name + '"' + (item.stockName === s.name ? ' selected' : '') + '>' + s.name + '</option>';
+  }).join('');
+
+  const rec = recipes[itemId] || [];
+  let recipeHTML = '';
+  if (rec.length > 0) {
+    recipeHTML = '<div class="modal-section"><div class="modal-section-title">Recipe Ingredients</div><div id="recipe-list">' +
+      rec.map(function(ing, idx) {
+        const si = stockItems.find(function(s) { return s.fid === ing.stockId; });
+        return '<div class="ing-row" style="padding:6px 0;">' +
+          '<span class="ing-name">' + (si ? si.name : 'Unknown') + '</span>' +
+          '<span class="ing-detail">' + ing.qty + ' ' + (si ? si.unit : '') + '</span>' +
+        '</div>';
+      }).join('') +
+    '</div></div>';
+  }
+
+  openModal('<div class="modal modal-wide">' +
+    '<div class="modal-title">Edit: ' + item.name + '</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Name</label><input type="text" id="edit-item-name" value="' + item.name + '"></div>' +
+      '<div class="form-group"><label>Category</label><select id="edit-item-cat">' + catOptions + '</select></div>' +
+    '</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Price ($)</label><input type="number" id="edit-item-price" value="' + (item.price || 0) + '" step="0.01" min="0"></div>' +
+      '<div class="form-group"><label>Est. Cost ($)</label><input type="number" id="edit-item-cost" value="' + (item.cost || 0) + '" step="0.01" min="0"></div>' +
+    '</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group cb-row"><input type="checkbox" id="edit-item-eod"' + (item.eodEligible ? ' checked' : '') + '><label>EOD Discount Eligible (hot food)</label></div>' +
+      '<div class="form-group cb-row"><input type="checkbox" id="edit-item-recipe"' + (item.useRecipe ? ' checked' : '') + '><label>Uses Recipe (multiple ingredients)</label></div>' +
+    '</div>' +
+    '<div id="edit-stock-link-section"' + (item.useRecipe ? ' style="display:none;"' : '') + '>' +
+      '<div class="form-group"><label>Links to Stock Item</label><select id="edit-item-stock"><option value="">-- None --</option>' + stockOptions + '</select></div>' +
+    '</div>' +
+    recipeHTML +
+    '<div class="modal-footer">' +
+      '<button class="btn btn-red" id="modal-delete-item" data-id="' + itemId + '">Delete Item</button>' +
+      '<div style="flex:1"></div>' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-update-item" data-id="' + itemId + '">Save Changes</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function saveEditItem(itemId) {
+  const name = $('edit-item-name') ? $('edit-item-name').value.trim() : '';
+  const category = $('edit-item-cat') ? $('edit-item-cat').value : 'Food';
+  const price = parseFloat($('edit-item-price') ? $('edit-item-price').value : 0) || 0;
+  const cost = parseFloat($('edit-item-cost') ? $('edit-item-cost').value : 0) || 0;
+  const eodEligible = $('edit-item-eod') ? $('edit-item-eod').checked : false;
+  const useRecipe = $('edit-item-recipe') ? $('edit-item-recipe').checked : false;
+  const stockName = $('edit-item-stock') ? $('edit-item-stock').value : '';
+  
+  if (!name) return;
+
+  try {
+    await db.collection('items').doc(itemId).update({
+      name: name,
+      category: category,
+      price: price,
+      cost: cost,
+      eodEligible: eodEligible,
+      useRecipe: useRecipe,
+      stockName: stockName
+    });
+    showToast('Item updated!');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error updating item');
+  }
+}
+
+async function deleteItem(itemId) {
+  if (!confirm('Delete this menu item? This cannot be undone.')) return;
+  try {
+    await db.collection('items').doc(itemId).delete();
+    // Also delete recipe if exists
+    if (recipes[itemId]) {
+      await db.collection('recipes').doc(itemId).delete();
+    }
+    showToast('Item deleted');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error deleting');
+  }
+}
+
+// Add Menu Item modal
+function openAddItem() {
+  const catOptions = ['Food', 'Drinks', 'Snacks', 'Custom'].map(function(c) {
+    return '<option value="' + c + '">' + c + '</option>';
+  }).join('');
+  
+  const stockOptions = stockItems.map(function(s) {
+    return '<option value="' + s.name + '">' + s.name + '</option>';
+  }).join('');
+
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Add Menu Item</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Name</label><input type="text" id="add-item-name"></div>' +
+      '<div class="form-group"><label>Category</label><select id="add-item-cat">' + catOptions + '</select></div>' +
+    '</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Price ($)</label><input type="number" id="add-item-price" value="0" step="0.01" min="0"></div>' +
+      '<div class="form-group"><label>Est. Cost ($)</label><input type="number" id="add-item-cost" value="0" step="0.01" min="0"></div>' +
+    '</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group cb-row"><input type="checkbox" id="add-item-eod"><label>EOD Discount Eligible</label></div>' +
+      '<div class="form-group cb-row"><input type="checkbox" id="add-item-recipe"><label>Uses Recipe</label></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Links to Stock Item</label><select id="add-item-stock"><option value="">-- None --</option>' + stockOptions + '</select></div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-save-item">Add Item</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function saveAddItem() {
+  const name = $('add-item-name') ? $('add-item-name').value.trim() : '';
+  const category = $('add-item-cat') ? $('add-item-cat').value : 'Food';
+  const price = parseFloat($('add-item-price') ? $('add-item-price').value : 0) || 0;
+  const cost = parseFloat($('add-item-cost') ? $('add-item-cost').value : 0) || 0;
+  const eodEligible = $('add-item-eod') ? $('add-item-eod').checked : false;
+  const useRecipe = $('add-item-recipe') ? $('add-item-recipe').checked : false;
+  const stockName = $('add-item-stock') ? $('add-item-stock').value : '';
+  
+  if (!name) return;
+
+  try {
+    await db.collection('items').add({
+      name: name,
+      category: category,
+      price: price,
+      cost: cost,
+      eodEligible: eodEligible,
+      useRecipe: useRecipe,
+      stockName: stockName,
+      hidden: false
+    });
+    showToast('Item added!');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error adding item');
+  }
+}
+
+// Export CSV
+function exportCSV() {
+  const range = $('report-range') ? $('report-range').value : 'all';
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfDay);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+
+  let filtered = transactions;
+  if (range === 'today') filtered = transactions.filter(function(t) { return (t.date && t.date.toDate ? t.date.toDate() : new Date(t.date)) >= startOfDay; });
+  else if (range === 'week') filtered = transactions.filter(function(t) { return (t.date && t.date.toDate ? t.date.toDate() : new Date(t.date)) >= startOfWeek; });
+
+  let csv = 'Date,Time,Items,Pay Type,EOD,Total,Cost,Profit\n';
+  filtered.forEach(function(t) {
+    const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+    const date = d.toLocaleDateString();
+    const time = d.toLocaleTimeString();
+    const itemStr = (t.items || []).map(function(i) { return i.qty + 'x ' + i.name; }).join('; ');
+    const profit = (t.total || 0) - (t.totalCost || 0);
+    csv += '"' + date + '","' + time + '","' + itemStr + '","' + t.payType + '","' + (t.eodApplied ? 'Yes' : 'No') + '",' + (t.total ? t.total.toFixed(2) : 0) + ',' + (t.totalCost ? t.totalCost.toFixed(2) : 0) + ',' + profit.toFixed(2) + '\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'tcwr-report-' + range + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Recalculate costs
+async function recalcCosts() {
+  showToast('Recalculating costs...');
+  const batch = db.batch();
+
+  for (const t of transactions) {
+    let totalCost = 0;
+    for (const i of (t.items || [])) {
+      const item = items.find(function(x) { return x.name === i.name; });
+      if (item) {
+        i.cost = item.cost || 0;
+        totalCost += i.cost * i.qty;
+      }
+    }
+    batch.update(db.collection('transactions').doc(t.fid), { items: t.items, totalCost: totalCost });
+  }
+
+  try {
+    await batch.commit();
+    showToast('Costs recalculated!');
+  } catch (e) {
+    console.error(e);
+    showToast('Error recalculating');
+  }
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+document.addEventListener('click', function(e) {
+  const t = e.target;
+
+  // Tabs
+  if (t.classList.contains('tab')) {
+    switchTab(t.dataset.tab);
+  }
+
+  // Category tiles
+  if (t.classList.contains('cat-tile')) {
+    setCat(t.dataset.cat);
+  }
+
+  // Menu items
+  if (t.closest('.menu-btn')) {
+    const btn = t.closest('.menu-btn');
+    if (!btn.classList.contains('mb-disabled')) {
+      addToOrder(btn.dataset.id);
+    }
+  }
+
+  // Order quantity buttons
+  if (t.classList.contains('qbtn')) {
+    updateQty(t.dataset.fid, parseInt(t.dataset.delta));
+  }
+
+  // Payment buttons
+  if (t.classList.contains('pay-btn')) {
+    selectPay(t.dataset.pay);
+  }
+
+  // EOD button
+  if (t.id === 'eod-btn') toggleEOD();
+
+  // Clear button
+  if (t.id === 'clear-btn') clearOrder();
+
+  // Checkout button
+  if (t.id === 'checkout-btn') checkout();
+
+  // Stock buttons
+  if (t.dataset.restock) openRestock(t.dataset.restock);
+  if (t.dataset.editstock) openEditStock(t.dataset.editstock);
+  if (t.id === 'add-stock-btn') openAddStock();
+
+  // Item buttons
+  if (t.dataset.edititem) openEditItem(t.dataset.edititem);
+  if (t.id === 'add-item-btn') openAddItem();
+
+  // Waste buttons
+  if (t.id === 'log-waste-btn') openWasteModal();
+
+  // Report buttons
+  if (t.id === 'export-btn') exportCSV();
+  if (t.id === 'recalc-btn') recalcCosts();
+  if (t.dataset.sort) sortItems(t.dataset.sort);
+
+  // Modal buttons
+  if (t.id === 'modal-cancel' || t.id === 'modal-bg') closeModal();
+  if (t.id === 'modal-save') saveRestock();
+  if (t.id === 'modal-save-stock') saveAddStock();
+  if (t.id === 'modal-save-waste') saveWaste();
+  if (t.id === 'modal-save-item') saveAddItem();
+  if (t.id === 'modal-update-stock') saveEditStock(t.dataset.id);
+  if (t.id === 'modal-delete-stock') deleteStock(t.dataset.id);
+  if (t.id === 'modal-update-item') saveEditItem(t.dataset.id);
+  if (t.id === 'modal-delete-item') deleteItem(t.dataset.id);
+
+  // Toggle hide item
+  if (t.dataset.togglehide) {
+    const item = items.find(function(i) { return i.fid === t.dataset.togglehide; });
+    if (item) {
+      db.collection('items').doc(item.fid).update({ hidden: !item.hidden });
+    }
+  }
+});
+
+// Report range change
+if ($('report-range')) {
+  $('report-range').addEventListener('change', renderReports);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+startListeners();
+</script>
+</body>
+</html>
