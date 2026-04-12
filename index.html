@@ -1,0 +1,2265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TCWR Concession POS</title>
+<!-- FIXED: Proper Firebase CDN URLs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<!-- FIXED: Proper Google Fonts URL -->
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#1a3a2a;--green:#2d6a4f;--green-mid:#52b788;--green-light:#d8f3dc;--gold:#d4a017;--gold-light:#fdf3d7;--cream:#faf8f2;--gray:#f0ede6;--gray2:#e0ddd5;--gray3:#b8b4aa;--text:#1c1c1a;--text2:#6b6860;--white:#ffffff;--red:#b83232;--red-light:#fdf0ee;--amber:#c25a1a;--amber-light:#fdf0e6;--blue:#1a4f6b;--blue-light:#e6f2fb;--warn:#e67e22;--warn-light:#fef5ec;--shadow:0 1px 4px rgba(0,0,0,0.08);--shadow-md:0 4px 16px rgba(0,0,0,0.12);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;font-size:13px;}
+.header{background:var(--forest);padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:50;border-bottom:3px solid var(--gold);}
+.header-title{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--gold);letter-spacing:0.08em;line-height:1;}
+.header-sub{font-size:10px;color:rgba(255,255,255,0.7);letter-spacing:0.12em;text-transform:uppercase;margin-top:1px;}
+.header-spacer{flex:1;}
+.header-clock{font-family:'Bebas Neue',sans-serif;font-size:16px;color:#fff;letter-spacing:0.06em;line-height:1.3;}
+.header-date{font-size:10px;color:rgba(255,255,255,0.6);}
+.conn-badge{font-size:11px;padding:4px 12px;border-radius:99px;font-weight:600;margin-left:8px;}
+.conn-live{background:var(--green-mid);color:var(--forest);}
+.conn-connecting{background:#f9ca24;color:#6b4c00;}
+.conn-error{background:var(--red);color:#fff;}
+.tabs{background:var(--forest);display:flex;padding:0 24px;gap:2px;border-top:1px solid rgba(255,255,255,0.08);overflow-x:auto;}
+.tab{padding:10px 14px;font-size:11px;font-weight:600;cursor:pointer;color:rgba(255,255,255,0.65);border-bottom:3px solid transparent;transition:all 0.15s;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;}
+.tab:hover{color:rgba(255,255,255,0.9);}.tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.main{padding:20px 24px;max-width:1400px;margin:0 auto;}
+.panel{display:none;}.panel.active{display:block;}
+.register-grid{display:grid;grid-template-columns:1fr 390px;gap:20px;}
+.sh{display:flex;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
+.sh-title{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--forest);letter-spacing:0.06em;}
+.sh-spacer{flex:1;}
+.fsel{padding:6px 12px;border:1.5px solid var(--gray2);border-radius:8px;background:var(--white);font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);cursor:pointer;}
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
+.cat-tiles{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.cat-tile{padding:12px 22px;border-radius:10px;border:2px solid var(--gray2);background:var(--white);cursor:pointer;font-size:14px;font-weight:700;color:var(--text2);transition:all 0.15s;font-family:'DM Sans',sans-serif;}
+.cat-tile:hover{border-color:var(--green);color:var(--green);}
+.cat-tile.cat-active{background:var(--forest);color:var(--gold);border-color:var(--forest);}
+.cat-tile.cat-discount{background:var(--gold-light);color:var(--gold);border-color:var(--gold);}
+.cat-tile.cat-discount.cat-active{background:var(--gold);color:var(--white);border-color:var(--gold);}
+.menu-btn{background:var(--white);border:1.5px solid var(--gray2);border-radius:14px;padding:18px 14px;cursor:pointer;text-align:left;transition:all 0.12s;box-shadow:var(--shadow);position:relative;min-height:105px;}
+.menu-btn:hover{border-color:var(--green);transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.menu-btn:active{transform:scale(0.96);}
+.menu-btn.mb-disabled{opacity:0.38;cursor:not-allowed;pointer-events:none;}
+.menu-btn.mb-warn{border-color:var(--warn);}
+.menu-btn.mb-discount{background:var(--gold-light);border-color:var(--gold);}
+.warn-dot{position:absolute;top:10px;right:10px;width:9px;height:9px;border-radius:50%;background:var(--warn);}
+.mb-name{font-weight:700;font-size:15px;line-height:1.3;margin-bottom:6px;}
+.mb-price{font-size:18px;font-weight:700;color:var(--green);}
+.mb-original{font-size:12px;color:var(--text2);text-decoration:line-through;margin-left:6px;}
+.mb-can{font-size:12px;font-weight:600;margin-top:5px;}
+.can-ok{color:var(--green);}.can-low{color:var(--warn);}.can-none{color:var(--red);}
+.disc-pip{display:inline-block;font-size:9px;background:var(--gold);color:var(--white);padding:2px 6px;border-radius:4px;margin-top:3px;font-weight:600;}
+.order-card{background:var(--white);border:1.5px solid var(--gray2);border-radius:16px;padding:18px;box-shadow:var(--shadow-md);position:sticky;top:112px;max-height:calc(100vh - 130px);display:flex;flex-direction:column;}
+.oc-title{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--forest);letter-spacing:0.06em;margin-bottom:8px;}
+.order-items{flex:1;overflow-y:auto;min-height:80px;}
+.order-empty{text-align:center;padding:28px 0;color:var(--text2);font-size:12px;font-style:italic;}
+.order-row{display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--gray);font-size:12px;}
+.order-row:last-child{border-bottom:none;}
+.qbtn{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--gray2);background:transparent;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:all 0.1s;}
+.qbtn:hover{background:var(--gray);border-color:var(--green);color:var(--green);}
+.oqty{min-width:20px;text-align:center;font-weight:700;}
+.oname{flex:1;font-weight:500;font-size:12px;}
+.oprice{font-weight:700;color:var(--forest);}
+.order-footer{margin-top:12px;border-top:1.5px solid var(--gray2);padding-top:12px;}
+.ol{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:3px 0;}
+.ol.discount{color:var(--amber);font-weight:600;}
+.order-total-row{display:flex;justify-content:space-between;font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--forest);letter-spacing:0.04em;margin-top:6px;}
+.pay-section{margin-top:10px;}
+.pay-label{font-size:11px;color:var(--text2);font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:6px;}
+.emp-disc-btn{width:100%;padding:10px;border:2px solid var(--blue);border-radius:8px;background:var(--blue-light);cursor:pointer;font-size:12px;font-weight:700;color:var(--blue);text-align:center;transition:all 0.12s;font-family:'DM Sans',sans-serif;margin-bottom:8px;}
+.emp-disc-btn:hover{background:var(--blue);color:#fff;}
+.emp-disc-btn.emp-active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.pay-btn{padding:10px;border:1.5px solid var(--gray2);border-radius:8px;background:var(--gray);cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);text-align:center;transition:all 0.12s;font-family:'DM Sans',sans-serif;}
+.pay-btn:hover{border-color:var(--green);color:var(--green);}
+.pay-btn.pay-active{background:var(--forest);color:var(--gold);border-color:var(--forest);}
+.btn{padding:8px 16px;border-radius:8px;border:1.5px solid var(--gray2);background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:var(--text);transition:all 0.12s;font-family:'DM Sans',sans-serif;}
+.btn:hover{background:var(--gray);}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-green:hover{background:var(--forest);}
+.btn-gold{background:var(--gold-light);color:var(--gold);border-color:var(--gold);}
+.btn-red{background:var(--red-light);color:var(--red);border-color:var(--red);}
+.btn-sm{padding:5px 12px;font-size:11px;}
+.btn-row{display:flex;gap:8px;align-items:center;margin-top:10px;}
+.card{background:var(--white);border:1.5px solid var(--gray2);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin-bottom:18px;}
+.metrics{display:grid;gap:10px;margin-bottom:18px;}
+.m4{grid-template-columns:repeat(4,1fr);}.m6{grid-template-columns:repeat(6,1fr);}
+.metric{background:var(--gray);border-radius:10px;padding:14px 16px;}
+.metric-label{font-size:11px;color:var(--text2);font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:6px;}
+.metric-val{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:0.04em;color:var(--forest);line-height:1;}
+.mv-green{color:var(--green);}.mv-red{color:var(--red);}.mv-gold{color:var(--gold);}.mv-blue{color:var(--blue);}
+.pay-breakdown{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
+.pb-card{background:var(--forest);border-radius:10px;padding:12px 14px;}
+.pb-label{font-size:10px;color:rgba(255,255,255,0.75);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;}
+.pb-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;letter-spacing:0.04em;}
+.pb-card.pb-staff{background:var(--blue);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{text-align:left;padding:8px 12px;background:var(--forest);color:#fff;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;}
+thead th:first-child{border-radius:8px 0 0 0;}thead th:last-child{border-radius:0 8px 0 0;}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--gray);color:var(--text);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}tbody tr:hover td{background:var(--gray);}
+.badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;}
+.b-green{background:var(--green-light);color:var(--forest);}.b-amber{background:var(--amber-light);color:var(--amber);}
+.b-red{background:var(--red-light);color:var(--red);}.b-gray{background:var(--gray2);color:var(--text2);}
+.b-blue{background:var(--blue-light);color:var(--blue);}.b-gold{background:var(--gold-light);color:var(--gold);}
+.b-forest{background:var(--forest);color:var(--green-mid);}.b-warn{background:var(--warn-light);color:var(--warn);}
+.mbar-wrap{width:70px;height:6px;background:var(--gray2);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:6px;}
+.mbar-fill{height:100%;border-radius:3px;}
+.form-group{margin-bottom:12px;}
+label{font-size:11px;color:var(--text2);font-weight:600;display:block;margin-bottom:4px;letter-spacing:0.03em;text-transform:uppercase;}
+input,select,textarea{width:100%;padding:9px 12px;border:1.5px solid var(--gray2);border-radius:8px;background:var(--white);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;transition:border-color 0.15s;}
+input:focus,select:focus{outline:none;border-color:var(--green);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.cb-row{display:flex;align-items:center;gap:8px;}
+.cb-row input{width:auto;}.cb-row label{margin:0;text-transform:none;font-size:12px;color:var(--text);font-weight:500;}
+.ing-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray);font-size:12px;flex-wrap:wrap;}
+.ing-row:last-child{border-bottom:none;}
+.ing-name{flex:1;font-weight:600;min-width:120px;}
+.ing-detail{font-size:11px;color:var(--text2);}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(3px);}
+.modal{background:var(--white);border-radius:16px;padding:24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-md);border-top:4px solid var(--gold);}
+.modal-wide{width:560px;}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--forest);letter-spacing:0.06em;margin-bottom:18px;}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+.modal-section{background:var(--gray);border-radius:10px;padding:14px;margin-top:14px;}
+.modal-section-title{font-weight:700;font-size:13px;color:var(--forest);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.04em;}
+.recipe-row{display:flex;align-items:center;gap:12px;padding:8px 10px;background:var(--white);border-radius:8px;margin-bottom:6px;font-size:12px;}
+.recipe-row:last-child{margin-bottom:0;}
+.rm-btn{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--red);background:var(--red-light);color:var(--red);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;margin-left:auto;transition:all 0.1s;}
+.rm-btn:hover{background:var(--red);color:#fff;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--forest);color:#fff;padding:12px 20px;border-radius:10px;font-size:12px;font-weight:600;z-index:200;opacity:0;transform:translateY(8px);transition:all 0.2s;pointer-events:none;border-left:4px solid var(--gold);}
+.toast.show{opacity:1;transform:translateY(0);}
+.loading-screen{position:fixed;inset:0;background:var(--forest);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:300;transition:opacity 0.5s;}
+.loading-screen.gone{opacity:0;pointer-events:none;}
+.load-paw{font-size:40px;margin-bottom:12px;animation:bounce 1s ease-in-out infinite;}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.load-title{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--gold);letter-spacing:0.1em;}
+.load-sub{font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:0.15em;text-transform:uppercase;margin-top:4px;margin-bottom:28px;}
+.load-bar{width:180px;height:4px;background:rgba(255,255,255,0.1);border-radius:99px;overflow:hidden;}
+.load-fill{height:100%;background:var(--gold);border-radius:99px;animation:lf 1.4s ease-in-out infinite;}
+@keyframes lf{0%{width:0;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0;margin-left:100%}}
+.date-range-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;}
+.date-input{width:auto;padding:6px 10px;font-size:12px;}
+.analytics-card{background:var(--white);border:1.5px solid var(--gray2);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin-bottom:18px;}
+.analytics-title{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--forest);letter-spacing:0.06em;margin-bottom:14px;}
+.staff-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.staff-metric{background:var(--blue-light);border-radius:8px;padding:12px;text-align:center;}
+.staff-metric-label{font-size:10px;color:var(--blue);font-weight:600;text-transform:uppercase;margin-bottom:4px;}
+.staff-metric-val{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--blue);}
+.dow-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.dow-col{text-align:center;}
+.dow-label{font-size:10px;color:var(--text2);font-weight:600;margin-bottom:4px;}
+.dow-bar{height:60px;background:var(--gray);border-radius:4px;position:relative;overflow:hidden;}
+.dow-fill{position:absolute;bottom:0;left:0;right:0;background:var(--green);border-radius:4px;}
+.dow-val{font-size:11px;font-weight:600;color:var(--forest);margin-top:4px;}
+@media(max-width:900px){.register-grid{grid-template-columns:1fr;}.m4,.m6{grid-template-columns:repeat(2,1fr);}.pay-breakdown{grid-template-columns:repeat(2,1fr);}.order-card{position:static;max-height:none;}.main{padding:14px 16px;}.staff-summary{grid-template-columns:repeat(2,1fr);}.dow-grid{grid-template-columns:repeat(4,1fr);}}
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="load-paw">🐾</div>
+  <div class="load-title">TCWR Concession</div>
+  <div class="load-sub">Turpentine Creek Wildlife Refuge</div>
+  <div class="load-bar"><div class="load-fill"></div></div>
+</div>
+
+<div class="header">
+  <span style="font-size:22px;">🐾</span>
+  <div>
+    <div class="header-title">TCWR Concession</div>
+    <div class="header-sub">Turpentine Creek Wildlife Refuge</div>
+  </div>
+  <div class="header-spacer"></div>
+  <div style="text-align:right;">
+    <div class="header-clock" id="hclock">--:--:-- --</div>
+    <div class="header-date" id="hdate">Loading...</div>
+  </div>
+  <span class="conn-badge conn-connecting" id="conn-status">Connecting...</span>
+</div>
+
+<div class="tabs" id="tab-bar">
+  <div class="tab active" data-tab="register">Register</div>
+  <div class="tab" data-tab="stock">Stock & Ingredients</div>
+  <div class="tab" data-tab="waste">Waste Log</div>
+  <div class="tab" data-tab="reports">Reports</div>
+  <div class="tab" data-tab="analytics">Staff Analytics</div>
+  <div class="tab" data-tab="manage">Manage Items</div>
+</div>
+
+<div class="main">
+
+<!-- REGISTER -->
+<div class="panel active" id="tab-register">
+  <div class="register-grid">
+    <div>
+      <div class="cat-tiles" id="cat-tiles"></div>
+      <div id="low-alerts"></div>
+      <div class="menu-grid" id="menu-grid"></div>
+    </div>
+    <div class="order-card">
+      <div class="oc-title">Current Order</div>
+      <div style="font-size:11px;color:var(--text2);padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--gray2);" id="order-clock">Loading...</div>
+      <div class="order-items" id="order-list"><div class="order-empty">Tap items to add them</div></div>
+      <div class="order-footer">
+        <div class="ol discount" id="disc-line" style="display:none;"><span id="disc-label">Discount</span><span id="disc-amt"></span></div>
+        <div class="ol"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+        <div class="order-total-row"><span>Total</span><span id="total">$0.00</span></div>
+        <div class="pay-section">
+          <div class="pay-label">Payment</div>
+          <button class="emp-disc-btn" id="emp-disc-btn">👤 Employee Discount (50% Off)</button>
+          <div class="pay-grid">
+            <button class="pay-btn pay-active" id="pay-cash" data-pay="cash">💵 Cash</button>
+            <button class="pay-btn" id="pay-card" data-pay="card">💳 Card</button>
+          </div>
+        </div>
+        <div class="btn-row">
+          <div style="flex:1"></div>
+          <button class="btn btn-sm" id="clear-btn">Clear</button>
+          <button class="btn btn-green" id="checkout-btn">Checkout →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STOCK & INGREDIENTS -->
+<div class="panel" id="tab-stock">
+  <div class="sh">
+    <div class="sh-title">Stock & Ingredients</div>
+    <div class="sh-spacer"></div>
+    <button class="btn btn-sm" id="adjust-stock-btn">± Adjustment</button>
+    <button class="btn btn-green btn-sm" id="add-stock-btn">+ Add Item/Ingredient</button>
+  </div>
+  <div id="low-stock-alerts"></div>
+  <p style="font-size:12px;color:var(--text2);margin-bottom:16px;">Everything you stock — raw ingredients for recipes AND pre-made items like chips, ice cream, candy. All tracked the same way.</p>
+  <div id="stock-alerts"></div>
+  <div class="card"><div id="stock-list"><p style="color:var(--text2);font-size:12px;padding:12px 0;">Loading...</p></div></div>
+</div>
+
+<!-- WASTE -->
+<div class="panel" id="tab-waste">
+  <div class="sh"><div class="sh-title">Waste Log</div><div class="sh-spacer"></div><button class="btn btn-green btn-sm" id="log-waste-btn">+ Log Waste</button></div>
+  <div class="metrics m4" style="margin-bottom:18px;">
+    <div class="metric"><div class="metric-label">Items wasted</div><div class="metric-val" id="w-qty">0</div></div>
+    <div class="metric"><div class="metric-label">Waste value</div><div class="metric-val mv-red" id="w-val">$0.00</div></div>
+    <div class="metric"><div class="metric-label">Most wasted</div><div class="metric-val" style="font-size:15px;padding-top:4px;" id="w-top">—</div></div>
+  </div>
+  <div class="card"><div id="waste-list"><p style="color:var(--text2);font-size:12px;padding:12px 0;">No waste logged yet.</p></div></div>
+</div>
+
+<!-- REPORTS -->
+<div class="panel" id="tab-reports">
+  <div class="sh">
+    <div class="sh-title">Reports</div><div class="sh-spacer"></div>
+    <select class="fsel" id="report-range">
+      <option value="today">Today</option><option value="week">This week</option><option value="month">This month</option><option value="custom">Custom dates</option><option value="all" selected>All time</option>
+    </select>
+    <button class="btn btn-sm" id="export-btn">Export CSV</button>
+  </div>
+  <div class="date-range-row" id="custom-date-row" style="display:none;">
+    <label style="margin:0;text-transform:none;">From:</label>
+    <input type="date" class="date-input" id="date-from">
+    <label style="margin:0;text-transform:none;">To:</label>
+    <input type="date" class="date-input" id="date-to">
+    <button class="btn btn-sm btn-green" id="apply-dates-btn">Apply</button>
+  </div>
+  <div class="metrics m6">
+    <div class="metric"><div class="metric-label">Total Revenue</div><div class="metric-val" id="r-revenue">$0.00</div></div>
+    <div class="metric"><div class="metric-label">Est. COGS</div><div class="metric-val mv-red" id="r-cogs">$0.00</div></div>
+    <div class="metric"><div class="metric-label">Gross Profit</div><div class="metric-val mv-green" id="r-profit">$0.00</div></div>
+    <div class="metric"><div class="metric-label">Margin %</div><div class="metric-val mv-gold" id="r-margin">0%</div></div>
+    <div class="metric"><div class="metric-label">Transactions</div><div class="metric-val" id="r-txns">0</div></div>
+    <div class="metric"><div class="metric-label">Avg Order</div><div class="metric-val" id="r-avg">$0.00</div></div>
+  </div>
+  <div class="metrics m4" style="margin-bottom:18px;">
+    <div class="metric"><div class="metric-label">Waste (Period)</div><div class="metric-val mv-red" id="r-waste">$0.00</div></div>
+    <div class="metric"><div class="metric-label">COGS + Waste</div><div class="metric-val mv-red" id="r-cogs-waste">$0.00</div></div>
+    <div class="metric"><div class="metric-label">Profit After Waste</div><div class="metric-val mv-green" id="r-profit-waste">$0.00</div></div>
+    <div class="metric"><div class="metric-label">Margin After Waste</div><div class="metric-val mv-gold" id="r-margin-waste">0%</div></div>
+  </div>
+  <div class="pay-breakdown">
+    <div class="pb-card"><div class="pb-label">💵 Cash (Guest)</div><div class="pb-val" id="r-cash">$0.00</div></div>
+    <div class="pb-card"><div class="pb-label">💳 Card (Guest)</div><div class="pb-val" id="r-card">$0.00</div></div>
+    <div class="pb-card pb-staff"><div class="pb-label">👤 Staff (All)</div><div class="pb-val" id="r-staff">$0.00</div></div>
+  </div>
+  <div class="card" style="margin-bottom:18px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--forest);letter-spacing:0.06em;margin-bottom:14px;">Item Breakdown</div>
+    <div style="overflow-x:auto;">
+      <table><thead><tr>
+        <th>Item</th>
+        <th style="cursor:pointer;" data-sort="qty"><span id="sh-qty">Qty Sold</span></th>
+        <th style="cursor:pointer;" data-sort="revenue"><span id="sh-revenue">Revenue ↓</span></th>
+        <th>Est. Cost</th>
+        <th style="cursor:pointer;" data-sort="profit"><span id="sh-profit">Profit</span></th>
+        <th style="cursor:pointer;" data-sort="margin"><span id="sh-margin">Margin %</span></th>
+      </tr></thead><tbody id="r-item-table"></tbody></table>
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--forest);letter-spacing:0.06em;margin-bottom:14px;">Transaction Log</div>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+      <table><thead><tr><th>Time</th><th>Date</th><th>Items</th><th>Pay Type</th><th>Disc.</th><th>Revenue</th><th>Est. Profit</th><th>Actions</th></tr></thead>
+      <tbody id="r-log"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- STAFF ANALYTICS -->
+<div class="panel" id="tab-analytics">
+  <div class="sh">
+    <div class="sh-title">Staff Analytics</div>
+    <div class="sh-spacer"></div>
+    <select class="fsel" id="analytics-range">
+      <option value="today">Today</option><option value="week">This week</option><option value="month" selected>This month</option><option value="all">All time</option>
+    </select>
+  </div>
+  
+  <div class="analytics-card">
+    <div class="analytics-title">Staff vs. Guest Overview</div>
+    <div class="staff-summary">
+      <div class="staff-metric"><div class="staff-metric-label">Staff Transactions</div><div class="staff-metric-val" id="a-staff-txns">0</div></div>
+      <div class="staff-metric"><div class="staff-metric-label">Staff Revenue</div><div class="staff-metric-val" id="a-staff-rev">$0</div></div>
+      <div class="staff-metric"><div class="staff-metric-label">% of Transactions</div><div class="staff-metric-val" id="a-staff-pct">0%</div></div>
+      <div class="staff-metric"><div class="staff-metric-label">% of Revenue</div><div class="staff-metric-val" id="a-staff-rev-pct">0%</div></div>
+    </div>
+  </div>
+  
+  <div class="analytics-card">
+    <div class="analytics-title">Item-Level Staff Purchases</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">See which items are mostly being purchased by staff vs. guests. High staff % may indicate items to reconsider.</p>
+    <div style="overflow-x:auto;">
+      <table><thead><tr>
+        <th>Item</th>
+        <th>Total Sold</th>
+        <th>Staff Qty</th>
+        <th>Guest Qty</th>
+        <th>Staff %</th>
+        <th>Staff Rev</th>
+        <th>Guest Rev</th>
+      </tr></thead><tbody id="a-item-table"></tbody></table>
+    </div>
+  </div>
+  
+  <div class="analytics-card">
+    <div class="analytics-title">Sales by Day of Week</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">See when you're busiest. Weekend peaks suggest guest traffic; weekday sales may skew staff.</p>
+    <div class="dow-grid" id="dow-grid"></div>
+  </div>
+</div>
+
+<!-- MANAGE ITEMS -->
+<div class="panel" id="tab-manage">
+  <div class="sh">
+    <div class="sh-title">Manage Menu Items</div><div class="sh-spacer"></div>
+    <button class="btn btn-green btn-sm" id="add-item-btn">+ Add Menu Item</button>
+  </div>
+  <div class="card"><div id="manage-list"><p style="color:var(--text2);font-size:12px;padding:12px 0;">Loading...</p></div></div>
+</div>
+
+</div>
+
+<div id="modal-container"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// FIREBASE CONFIG
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyD3XIiCcVntvcq9gYzJ1_-SCy8HYFgNNeY",
+  authDomain: "twcr-pos.firebaseapp.com",
+  projectId: "twcr-pos",
+  storageBucket: "twcr-pos.firebasestorage.app",
+  messagingSenderId: "533785199498",
+  appId: "1:533785199498:web:f586f3b54f0cfd64dffe73"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ============================================================
+// HELPER FUNCTIONS - DEFINED FIRST
+// ============================================================
+const $ = id => document.getElementById(id);
+const fmt = n => '$' + (Math.round((n || 0) * 100) / 100).toFixed(2);
+const pct = n => Math.round(n || 0) + '%';
+
+// ============================================================
+// STATE
+// ============================================================
+let items = [];
+let transactions = [];
+let wasteLog = [];
+let stockItems = [];
+let restockHistory = [];
+let recipes = {};
+let order = [];
+let employeeDiscount = false;
+let selectedPay = 'cash';
+let itemSortCol = 'revenue';
+let itemSortDir = 'desc';
+let currentRestockId = null;
+let currentCat = 'all';
+let customDateFrom = null;
+let customDateTo = null;
+
+// ============================================================
+// CLOCK - Uses document.getElementById directly to be safe
+// ============================================================
+function updateClock() {
+  const now = new Date();
+  const hc = document.getElementById('hclock');
+  const hd = document.getElementById('hdate');
+  const oc = document.getElementById('order-clock');
+  if (hc) hc.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if (hd) hd.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  if (oc) oc.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) + ' · ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ============================================================
+// CONNECTION STATUS
+// ============================================================
+function setConn(s) {
+  const el = $('conn-status');
+  if (!el) return;
+  el.className = 'conn-badge';
+  if (s === 'live') { el.classList.add('conn-live'); el.textContent = '● Live'; }
+  else if (s === 'connecting') { el.classList.add('conn-connecting'); el.textContent = 'Connecting...'; }
+  else { el.classList.add('conn-error'); el.textContent = 'Offline'; }
+}
+
+function hideLoading() {
+  setTimeout(() => {
+    const el = $('loading');
+    if (el) el.classList.add('gone');
+  }, 700);
+}
+
+function showToast(msg) {
+  const t = $('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tabName) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const tabEl = document.querySelector('.tab[data-tab="' + tabName + '"]');
+  const panelEl = $('tab-' + tabName);
+  if (tabEl) tabEl.classList.add('active');
+  if (panelEl) panelEl.classList.add('active');
+  
+  // Render analytics when switching to that tab
+  if (tabName === 'analytics') renderAnalytics();
+}
+
+// ============================================================
+// FIRESTORE LISTENERS
+// ============================================================
+function startListeners() {
+  setConn('connecting');
+
+  db.collection('items').orderBy('name').onSnapshot(snap => {
+    items = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+    renderMenu();
+    renderManage();
+    setConn('live');
+    hideLoading();
+  }, err => {
+    console.error('Items error:', err);
+    setConn('error');
+    hideLoading();
+  });
+
+  db.collection('stockItems').orderBy('name').onSnapshot(snap => {
+    stockItems = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+    renderStock();
+    renderLowStockAlerts();
+    renderMenu();
+  }, err => console.error('Stock error:', err));
+
+  db.collection('restockHistory').orderBy('date', 'desc').limit(100).onSnapshot(snap => {
+    restockHistory = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+  }, err => console.error('Restock history error:', err));
+
+  db.collection('transactions').orderBy('date', 'desc').onSnapshot(snap => {
+    transactions = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+    renderReports();
+    renderAnalytics();
+  }, err => console.error('Transactions error:', err));
+
+  db.collection('waste').orderBy('date', 'desc').onSnapshot(snap => {
+    wasteLog = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+    renderWaste();
+  }, err => console.error('Waste error:', err));
+
+  db.collection('recipes').onSnapshot(snap => {
+    recipes = {};
+    snap.docs.forEach(d => { recipes[d.id] = d.data().ingredients || []; });
+    renderMenu();
+  }, err => console.error('Recipes error:', err));
+}
+
+// ============================================================
+// CATEGORY TILES - Now includes 25% Off category
+// ============================================================
+function renderCatTiles() {
+  const cats = ['all', 'Food', 'Drinks', 'Snacks', 'Custom', '25% Off'];
+  const icons = { all: '🍽️', Food: '🌭', Drinks: '🥤', Snacks: '🍬', Custom: '⭐', '25% Off': '🏷️' };
+  const container = $('cat-tiles');
+  if (!container) return;
+  container.innerHTML = cats.map(c => {
+    const isDiscount = c === '25% Off';
+    const activeClass = currentCat === c ? ' cat-active' : '';
+    const discountClass = isDiscount ? ' cat-discount' : '';
+    return '<button class="cat-tile' + activeClass + discountClass + '" data-cat="' + c + '">' + icons[c] + ' ' + (c === 'all' ? 'All' : c) + '</button>';
+  }).join('');
+}
+
+function setCat(cat) {
+  currentCat = cat;
+  renderCatTiles();
+  renderMenu();
+}
+
+// ============================================================
+// MENU RENDERING - 25% Off category shows Food items at discount
+// ============================================================
+function canMake(item) {
+  if (!item.useRecipe) {
+    const si = stockItems.find(s => s.name === item.stockName);
+    return si ? si.qty : 999;
+  }
+  const rec = recipes[item.fid] || [];
+  if (rec.length === 0) return 999;
+  let minCanMake = Infinity;
+  for (const ing of rec) {
+    const si = stockItems.find(s => s.fid === ing.stockId);
+    if (!si || si.qty < ing.qty) return 0;
+    minCanMake = Math.min(minCanMake, Math.floor(si.qty / ing.qty));
+  }
+  return minCanMake === Infinity ? 999 : minCanMake;
+}
+
+function renderMenu() {
+  renderCatTiles();
+  const grid = $('menu-grid');
+  if (!grid) return;
+  
+  console.log('Items loaded:', items.length, 'Current category:', currentCat);
+  
+  // Handle 25% Off category - show all Food items at 25% discount
+  if (currentCat === '25% Off') {
+    const foodItems = items.filter(i => {
+      if (i.hidden) return false;
+      const itemCat = (i.category || '').toLowerCase();
+      return itemCat === 'food';
+    });
+    
+    if (foodItems.length === 0) {
+      grid.innerHTML = '<p style="color:var(--text2);padding:20px;text-align:center;">No food items available for 25% off.</p>';
+      return;
+    }
+    
+    grid.innerHTML = foodItems.map(i => {
+      const can = canMake(i);
+      const disabled = can <= 0;
+      const warn = can > 0 && can <= 5;
+      const discountPrice = i.price * 0.75;
+      return '<button class="menu-btn mb-discount' + (disabled ? ' mb-disabled' : '') + (warn ? ' mb-warn' : '') + '" data-id="' + i.fid + '" data-discount="true">' +
+        (warn ? '<div class="warn-dot"></div>' : '') +
+        '<div class="mb-name">' + i.name + '</div>' +
+        '<div class="mb-price">' + fmt(discountPrice) + '<span class="mb-original">' + fmt(i.price) + '</span></div>' +
+        '<div class="mb-can ' + (can > 5 ? 'can-ok' : can > 0 ? 'can-low' : 'can-none') + '">' + (can > 99 ? '99+' : can) + ' avail</div>' +
+        '<div class="disc-pip">25% OFF</div>' +
+      '</button>';
+    }).join('');
+    return;
+  }
+  
+  const filtered = items.filter(i => {
+    if (i.hidden) return false;
+    if (currentCat === 'all') return true;
+    const itemCat = (i.category || '').toLowerCase();
+    const selectedCat = currentCat.toLowerCase();
+    return itemCat === selectedCat;
+  });
+
+  console.log('Filtered items:', filtered.length);
+
+  if (items.length === 0) {
+    grid.innerHTML = '<p style="color:var(--text2);padding:20px;text-align:center;">Loading items from Firebase...</p>';
+    return;
+  }
+  
+  if (filtered.length === 0) {
+    grid.innerHTML = '<p style="color:var(--text2);padding:20px;text-align:center;">No items in this category. Try clicking "All" or check Manage Items to unhide items.</p>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(i => {
+    const can = canMake(i);
+    const disabled = can <= 0;
+    const warn = can > 0 && can <= 5;
+    return '<button class="menu-btn' + (disabled ? ' mb-disabled' : '') + (warn ? ' mb-warn' : '') + '" data-id="' + i.fid + '">' +
+      (warn ? '<div class="warn-dot"></div>' : '') +
+      '<div class="mb-name">' + i.name + '</div>' +
+      '<div class="mb-price">' + fmt(i.price) + '</div>' +
+      '<div class="mb-can ' + (can > 5 ? 'can-ok' : can > 0 ? 'can-low' : 'can-none') + '">' + (can > 99 ? '99+' : can) + ' avail</div>' +
+    '</button>';
+  }).join('');
+}
+
+// ============================================================
+// ORDER MANAGEMENT
+// ============================================================
+function addToOrder(itemId, isDiscountItem) {
+  const item = items.find(i => i.fid === itemId);
+  if (!item) return;
+  if (canMake(item) <= 0) return;
+
+  // For 25% off items, create a modified order entry
+  const effectivePrice = isDiscountItem ? item.price * 0.75 : item.price;
+  const orderKey = isDiscountItem ? itemId + '_disc' : itemId;
+  const displayName = isDiscountItem ? item.name + ' (25% Off)' : item.name;
+  
+  const existing = order.find(o => o.orderKey === orderKey);
+  if (existing) {
+    if (existing.qty < canMake(item)) existing.qty++;
+  } else {
+    order.push({ 
+      orderKey: orderKey,
+      fid: itemId, 
+      name: displayName,
+      originalName: item.name,
+      price: effectivePrice,
+      originalPrice: item.price,
+      qty: 1, 
+      cost: item.cost || 0, 
+      isDiscountItem: isDiscountItem || false
+    });
+  }
+  renderOrder();
+}
+
+function updateQty(orderKey, delta) {
+  const idx = order.findIndex(o => o.orderKey === orderKey);
+  if (idx === -1) return;
+  order[idx].qty += delta;
+  if (order[idx].qty <= 0) order.splice(idx, 1);
+  renderOrder();
+}
+
+function renderOrder() {
+  const list = $('order-list');
+  if (!list) return;
+
+  if (order.length === 0) {
+    list.innerHTML = '<div class="order-empty">Tap items to add them</div>';
+    $('subtotal').textContent = '$0.00';
+    $('total').textContent = '$0.00';
+    $('disc-line').style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = order.map(o => '<div class="order-row">' +
+    '<button class="qbtn" data-orderkey="' + o.orderKey + '" data-delta="-1">−</button>' +
+    '<span class="oqty">' + o.qty + '</span>' +
+    '<button class="qbtn" data-orderkey="' + o.orderKey + '" data-delta="1">+</button>' +
+    '<span class="oname">' + o.name + '</span>' +
+    '<span class="oprice">' + fmt(o.price * o.qty) + '</span>' +
+  '</div>').join('');
+
+  let sub = order.reduce((s, o) => s + o.price * o.qty, 0);
+  let staffDiscount = employeeDiscount ? sub * 0.5 : 0;
+  let total = sub - staffDiscount;
+
+  $('subtotal').textContent = fmt(sub);
+  
+  if (employeeDiscount) {
+    $('disc-line').style.display = 'flex';
+    $('disc-label').textContent = '50% Employee Discount';
+    $('disc-amt').textContent = '-' + fmt(staffDiscount);
+  } else {
+    $('disc-line').style.display = 'none';
+  }
+  
+  $('total').textContent = fmt(total);
+}
+
+function clearOrder() {
+  order = [];
+  renderOrder();
+}
+
+function selectPay(type) {
+  selectedPay = type;
+  document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('pay-active'));
+  const btn = $('pay-' + type);
+  if (btn) btn.classList.add('pay-active');
+}
+
+function toggleEmployeeDiscount() {
+  employeeDiscount = !employeeDiscount;
+  const btn = $('emp-disc-btn');
+  if (btn) btn.classList.toggle('emp-active', employeeDiscount);
+  renderOrder();
+}
+
+// ============================================================
+// CHECKOUT
+// ============================================================
+async function checkout() {
+  if (order.length === 0) return;
+
+  let sub = order.reduce((s, o) => s + o.price * o.qty, 0);
+  let staffDiscount = employeeDiscount ? sub * 0.5 : 0;
+  let total = sub - staffDiscount;
+  let totalCost = order.reduce((s, o) => s + (o.cost || 0) * o.qty, 0);
+
+  // Determine pay type for storage - combine employee status with payment method
+  const payType = employeeDiscount ? 'staff' + selectedPay.charAt(0).toUpperCase() + selectedPay.slice(1) : selectedPay;
+
+  const txn = {
+    date: firebase.firestore.Timestamp.now(),
+    items: order.map(o => ({ 
+      fid: o.fid, 
+      name: o.originalName || o.name, 
+      qty: o.qty, 
+      price: o.price, 
+      originalPrice: o.originalPrice || o.price,
+      cost: o.cost || 0,
+      isDiscountItem: o.isDiscountItem || false
+    })),
+    payType: payType,
+    isStaff: employeeDiscount,
+    subtotal: sub,
+    staffDiscount: staffDiscount,
+    total,
+    totalCost
+  };
+
+  try {
+    await db.collection('transactions').add(txn);
+
+    // Deduct stock - use original item fid regardless of discount status
+    for (const o of order) {
+      const item = items.find(i => i.fid === o.fid);
+      if (!item) continue;
+      if (!item.useRecipe) {
+        const si = stockItems.find(s => s.name === item.stockName);
+        if (si) await db.collection('stockItems').doc(si.fid).update({ qty: firebase.firestore.FieldValue.increment(-o.qty) });
+      } else {
+        const rec = recipes[item.fid] || [];
+        for (const ing of rec) {
+          await db.collection('stockItems').doc(ing.stockId).update({ qty: firebase.firestore.FieldValue.increment(-Math.abs(ing.qty) * o.qty) });
+        }
+      }
+    }
+
+    showToast('Sale recorded! ' + fmt(total));
+    order = [];
+    employeeDiscount = false;
+    $('emp-disc-btn').classList.remove('emp-active');
+    renderOrder();
+  } catch (e) {
+    console.error(e);
+    showToast('Error saving sale');
+  }
+}
+
+// ============================================================
+// STOCK RENDERING
+// ============================================================
+function renderStock() {
+  const list = $('stock-list');
+  if (!list) return;
+
+  if (stockItems.length === 0) {
+    list.innerHTML = '<p style="color:var(--text2);font-size:12px;padding:12px 0;">No stock items yet.</p>';
+    return;
+  }
+
+  list.innerHTML = stockItems.map(s => {
+    const avgCost = s.totalSpent && s.totalQtyAdded ? (s.totalSpent / s.totalQtyAdded) : 0;
+    const displayCost = s.costPerUnit != null ? s.costPerUnit : avgCost;
+    const costLabel = s.costPerUnit != null ? 'cost' : 'avg';
+    const badge = s.qty > 10 ? 'b-green' : s.qty > 0 ? 'b-amber' : 'b-red';
+    return '<div class="ing-row">' +
+      '<span class="ing-name">' + s.name + '</span>' +
+      '<span class="ing-detail">' + s.unit + '</span>' +
+      '<span class="ing-detail" style="color:var(--green);font-weight:600;">' + costLabel + ': $' + displayCost.toFixed(2) + '/' + s.unit + '</span>' +
+      '<span class="badge ' + badge + '">' + s.qty + ' ' + s.unit + '</span>' +
+      '<button class="btn btn-sm" data-restock="' + s.fid + '">+ Restock</button>' +
+      '<button class="btn btn-sm" data-editstock="' + s.fid + '">Edit</button>' +
+    '</div>';
+  }).join('');
+}
+
+// ============================================================
+// LOW STOCK ALERTS - Grouped by vendor
+// ============================================================
+function renderLowStockAlerts() {
+  const container = $('low-stock-alerts');
+  if (!container) return;
+  
+  const lowStock = stockItems.filter(function(s) { return s.qty <= 10; });
+  
+  if (lowStock.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  // Group by vendor
+  const byVendor = {
+    'Ben E. Keith': [],
+    'Sam\'s Club': [],
+    'Walmart': [],
+    'Other': []
+  };
+  
+  lowStock.forEach(function(s) {
+    const vendor = s.vendor || 'Other';
+    if (byVendor[vendor]) {
+      byVendor[vendor].push(s);
+    } else {
+      byVendor['Other'].push(s);
+    }
+  });
+  
+  const vendorColors = {
+    'Ben E. Keith': 'var(--blue)',
+    'Sam\'s Club': 'var(--green)',
+    'Walmart': 'var(--amber)',
+    'Other': 'var(--text2)'
+  };
+  
+  const vendorDays = {
+    'Ben E. Keith': '(Wed delivery)',
+    'Sam\'s Club': '(Fri pickup)',
+    'Walmart': '(as needed)',
+    'Other': ''
+  };
+  
+  let html = '<div class="card" style="background:var(--warn-light);border-color:var(--warn);margin-bottom:16px;">' +
+    '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--warn);letter-spacing:0.06em;margin-bottom:12px;">⚠️ Low Stock Alert</div>';
+  
+  ['Ben E. Keith', 'Sam\'s Club', 'Walmart', 'Other'].forEach(function(vendor) {
+    const items = byVendor[vendor];
+    if (items.length === 0) return;
+    
+    html += '<div style="margin-bottom:10px;">' +
+      '<div style="font-weight:700;font-size:12px;color:' + vendorColors[vendor] + ';margin-bottom:4px;">' + 
+        vendor + ' <span style="font-weight:400;color:var(--text2);">' + vendorDays[vendor] + '</span></div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    
+    items.forEach(function(s) {
+      const badgeClass = s.qty <= 0 ? 'b-red' : 'b-amber';
+      html += '<span class="badge ' + badgeClass + '">' + s.name + ' (' + s.qty + ')</span>';
+    });
+    
+    html += '</div></div>';
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ============================================================
+// WASTE RENDERING
+// ============================================================
+function renderWaste() {
+  const list = $('waste-list');
+  if (!list) return;
+
+  const wq = $('w-qty');
+  const wv = $('w-val');
+  const wt = $('w-top');
+
+  if (wasteLog.length === 0) {
+    list.innerHTML = '<p style="color:var(--text2);font-size:12px;padding:12px 0;">No waste logged yet.</p>';
+    if (wq) wq.textContent = '0';
+    if (wv) wv.textContent = '$0.00';
+    if (wt) wt.textContent = '—';
+    return;
+  }
+
+  let totalQty = 0, totalVal = 0;
+  const byItem = {};
+  wasteLog.forEach(w => {
+    totalQty += w.qty;
+    totalVal += w.value || 0;
+    byItem[w.itemName] = (byItem[w.itemName] || 0) + w.qty;
+  });
+
+  const topItem = Object.entries(byItem).sort((a, b) => b[1] - a[1])[0];
+
+  if (wq) wq.textContent = totalQty;
+  if (wv) wv.textContent = fmt(totalVal);
+  if (wt) wt.textContent = topItem ? topItem[0] : '—';
+
+  list.innerHTML = wasteLog.slice(0, 50).map(w => {
+    const d = w.date && w.date.toDate ? w.date.toDate() : new Date(w.date);
+    return '<div class="ing-row">' +
+      '<span class="ing-name">' + w.itemName + '</span>' +
+      '<span class="badge b-red">' + w.qty + ' wasted</span>' +
+      '<span class="ing-detail">' + fmt(w.value) + '</span>' +
+      '<span class="ing-detail">' + d.toLocaleDateString() + '</span>' +
+      '<span class="ing-detail" style="min-width:70px;">' + (w.reason || '—') + '</span>' +
+      '<button class="btn btn-sm" data-editwaste="' + w.fid + '">Edit</button>' +
+      '<button class="btn btn-sm btn-red" data-deletewaste="' + w.fid + '">Delete</button>' +
+    '</div>';
+  }).join('');
+}
+
+// ============================================================
+// REPORTS RENDERING - Updated with custom date range
+// ============================================================
+function getFilteredTransactions(rangeId, dateFromEl, dateToEl) {
+  const range = $(rangeId) ? $(rangeId).value : 'all';
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfDay);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  let filtered = transactions;
+  if (range === 'today') {
+    filtered = transactions.filter(t => {
+      const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+      return d >= startOfDay;
+    });
+  } else if (range === 'week') {
+    filtered = transactions.filter(t => {
+      const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+      return d >= startOfWeek;
+    });
+  } else if (range === 'month') {
+    filtered = transactions.filter(t => {
+      const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+      return d >= startOfMonth;
+    });
+  } else if (range === 'custom' && customDateFrom && customDateTo) {
+    // Parse as LOCAL time (not UTC) to avoid timezone offset shifting the date
+    const [fy, fm, fd] = customDateFrom.split('-').map(Number);
+    const from = new Date(fy, fm - 1, fd, 0, 0, 0, 0);
+    const [ty, tm, td] = customDateTo.split('-').map(Number);
+    const to = new Date(ty, tm - 1, td, 23, 59, 59, 999);
+    filtered = transactions.filter(t => {
+      const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+      return d >= from && d <= to;
+    });
+  }
+  return filtered;
+}
+
+function renderReports() {
+  const range = $('report-range') ? $('report-range').value : 'all';
+  
+  // Show/hide custom date inputs
+  const customRow = $('custom-date-row');
+  if (customRow) {
+    customRow.style.display = range === 'custom' ? 'flex' : 'none';
+  }
+  
+  const filtered = getFilteredTransactions('report-range');
+  
+  // Get waste for same time period
+  const wasteFiltered = getFilteredWaste('report-range');
+  let wasteTotal = 0;
+  wasteFiltered.forEach(w => { wasteTotal += w.value || 0; });
+
+  let revenue = 0, cogs = 0, cash = 0, card = 0, staff = 0;
+  const itemStats = {};
+
+  filtered.forEach(t => {
+    revenue += t.total || 0;
+    cogs += t.totalCost || 0;
+    
+    const isStaff = t.isStaff || t.payType === 'staffCash' || t.payType === 'staffCard';
+    if (isStaff) {
+      staff += t.total;
+    } else if (t.payType === 'cash') {
+      cash += t.total;
+    } else if (t.payType === 'card') {
+      card += t.total;
+    }
+
+    (t.items || []).forEach(i => {
+      const itemName = i.name;
+      if (!itemStats[itemName]) itemStats[itemName] = { qty: 0, rev: 0, cost: 0 };
+      itemStats[itemName].qty += i.qty;
+      itemStats[itemName].rev += i.price * i.qty;
+      itemStats[itemName].cost += (i.cost || 0) * i.qty;
+    });
+  });
+
+  const profit = revenue - cogs;
+  const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+  const avg = filtered.length > 0 ? revenue / filtered.length : 0;
+  
+  // COGS + Waste calculations
+  const cogsWaste = cogs + wasteTotal;
+  const profitWaste = revenue - cogsWaste;
+  const marginWaste = revenue > 0 ? (profitWaste / revenue) * 100 : 0;
+
+  $('r-revenue').textContent = fmt(revenue);
+  $('r-cogs').textContent = fmt(cogs);
+  $('r-profit').textContent = fmt(profit);
+  $('r-margin').textContent = pct(margin);
+  $('r-txns').textContent = filtered.length;
+  $('r-avg').textContent = fmt(avg);
+  $('r-cash').textContent = fmt(cash);
+  $('r-card').textContent = fmt(card);
+  $('r-staff').textContent = fmt(staff);
+  
+  // Waste metrics
+  if ($('r-waste')) $('r-waste').textContent = fmt(wasteTotal);
+  if ($('r-cogs-waste')) $('r-cogs-waste').textContent = fmt(cogsWaste);
+  if ($('r-profit-waste')) $('r-profit-waste').textContent = fmt(profitWaste);
+  if ($('r-margin-waste')) $('r-margin-waste').textContent = pct(marginWaste);
+
+  // Item breakdown table
+  let itemArr = Object.entries(itemStats).map(function(entry) {
+    const name = entry[0];
+    const s = entry[1];
+    return {
+      name: name,
+      qty: s.qty,
+      revenue: s.rev,
+      cost: s.cost,
+      profit: s.rev - s.cost,
+      margin: s.rev > 0 ? ((s.rev - s.cost) / s.rev) * 100 : 0
+    };
+  });
+
+  itemArr.sort(function(a, b) {
+    const dir = itemSortDir === 'desc' ? -1 : 1;
+    return (a[itemSortCol] - b[itemSortCol]) * dir;
+  });
+
+  const table = $('r-item-table');
+  if (table) {
+    table.innerHTML = itemArr.map(function(i) {
+      const mcolor = i.margin >= 60 ? 'var(--green)' : i.margin >= 50 ? 'var(--gold)' : 'var(--red)';
+      return '<tr>' +
+        '<td style="font-weight:600;">' + i.name + '</td>' +
+        '<td><span class="badge b-forest">' + i.qty + '</span></td>' +
+        '<td style="font-weight:600;">' + fmt(i.revenue) + '</td>' +
+        '<td style="color:var(--red);">' + fmt(i.cost) + '</td>' +
+        '<td style="color:var(--green);font-weight:600;">' + fmt(i.profit) + '</td>' +
+        '<td><span style="font-weight:700;color:' + mcolor + ';">' + pct(i.margin) + '</span>' +
+        '<div class="mbar-wrap"><div class="mbar-fill" style="width:' + Math.min(i.margin, 100) + '%;background:' + mcolor + '"></div></div></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // Update sort headers
+  ['qty', 'revenue', 'profit', 'margin'].forEach(function(col) {
+    const el = $('sh-' + col);
+    if (el) el.textContent = col.charAt(0).toUpperCase() + col.slice(1) + (itemSortCol === col ? (itemSortDir === 'desc' ? ' ↓' : ' ↑') : '');
+  });
+
+  // Transaction log with void button
+  const log = $('r-log');
+  if (log) {
+    log.innerHTML = filtered.slice(0, 100).map(function(t) {
+      const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+      const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const itemStr = (t.items || []).map(function(i) { return i.qty + '× ' + i.name; }).join(', ');
+      
+      const isStaff = t.isStaff || t.payType === 'staffCash' || t.payType === 'staffCard';
+      const payBadge = isStaff ? 'b-blue' : 'b-forest';
+      let payLabel = '';
+      if (isStaff) {
+        payLabel = '👤 Staff';
+      } else if (t.payType === 'cash') {
+        payLabel = '💵 Cash';
+      } else {
+        payLabel = '💳 Card';
+      }
+      
+      const hasDiscount = t.staffDiscount > 0 || (t.items || []).some(i => i.isDiscountItem);
+      const profit = (t.total || 0) - (t.totalCost || 0);
+      
+      return '<tr>' +
+        '<td style="white-space:nowrap;">' + time + '</td>' +
+        '<td style="white-space:nowrap;">' + dateStr + '</td>' +
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;">' + itemStr + '</td>' +
+        '<td><span class="badge ' + payBadge + '">' + payLabel + '</span></td>' +
+        '<td>' + (hasDiscount ? '🏷️' : '—') + '</td>' +
+        '<td style="font-weight:700;">' + fmt(t.total) + '</td>' +
+        '<td style="color:var(--green);font-weight:600;">' + fmt(profit) + '</td>' +
+        '<td><button class="btn btn-sm btn-red" data-voidtxn="' + t.fid + '">Void</button></td>' +
+      '</tr>';
+    }).join('');
+  }
+}
+
+// Filter waste by same date range as reports
+function getFilteredWaste(rangeId) {
+  const range = $(rangeId) ? $(rangeId).value : 'all';
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfDay);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  let filtered = wasteLog;
+  if (range === 'today') {
+    filtered = wasteLog.filter(w => {
+      const d = w.date && w.date.toDate ? w.date.toDate() : new Date(w.date);
+      return d >= startOfDay;
+    });
+  } else if (range === 'week') {
+    filtered = wasteLog.filter(w => {
+      const d = w.date && w.date.toDate ? w.date.toDate() : new Date(w.date);
+      return d >= startOfWeek;
+    });
+  } else if (range === 'month') {
+    filtered = wasteLog.filter(w => {
+      const d = w.date && w.date.toDate ? w.date.toDate() : new Date(w.date);
+      return d >= startOfMonth;
+    });
+  } else if (range === 'custom' && customDateFrom && customDateTo) {
+    // Parse as LOCAL time (not UTC) to avoid timezone offset shifting the date
+    const [fy, fm, fd] = customDateFrom.split('-').map(Number);
+    const from = new Date(fy, fm - 1, fd, 0, 0, 0, 0);
+    const [ty, tm, td] = customDateTo.split('-').map(Number);
+    const to = new Date(ty, tm - 1, td, 23, 59, 59, 999);
+    filtered = wasteLog.filter(w => {
+      const d = w.date && w.date.toDate ? w.date.toDate() : new Date(w.date);
+      return d >= from && d <= to;
+    });
+  }
+  return filtered;
+}
+
+function sortItems(col) {
+  if (itemSortCol === col) {
+    itemSortDir = itemSortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    itemSortCol = col;
+    itemSortDir = 'desc';
+  }
+  renderReports();
+}
+
+// ============================================================
+// STAFF ANALYTICS
+// ============================================================
+function renderAnalytics() {
+  const filtered = getFilteredTransactions('analytics-range');
+  
+  // Calculate staff vs guest stats
+  let staffTxns = 0, guestTxns = 0, staffRev = 0, guestRev = 0;
+  const itemStaffStats = {};
+  const dowStats = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }; // Sun-Sat
+  
+  filtered.forEach(t => {
+    const isStaff = t.isStaff || t.payType === 'staffCash' || t.payType === 'staffCard';
+    const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+    const dow = d.getDay();
+    
+    dowStats[dow] += t.total || 0;
+    
+    if (isStaff) {
+      staffTxns++;
+      staffRev += t.total || 0;
+    } else {
+      guestTxns++;
+      guestRev += t.total || 0;
+    }
+    
+    (t.items || []).forEach(i => {
+      const name = i.name;
+      if (!itemStaffStats[name]) {
+        itemStaffStats[name] = { staffQty: 0, guestQty: 0, staffRev: 0, guestRev: 0 };
+      }
+      const itemRev = i.price * i.qty;
+      if (isStaff) {
+        itemStaffStats[name].staffQty += i.qty;
+        itemStaffStats[name].staffRev += itemRev;
+      } else {
+        itemStaffStats[name].guestQty += i.qty;
+        itemStaffStats[name].guestRev += itemRev;
+      }
+    });
+  });
+  
+  const totalTxns = staffTxns + guestTxns;
+  const totalRev = staffRev + guestRev;
+  
+  // Update overview stats
+  $('a-staff-txns').textContent = staffTxns;
+  $('a-staff-rev').textContent = fmt(staffRev);
+  $('a-staff-pct').textContent = totalTxns > 0 ? pct((staffTxns / totalTxns) * 100) : '0%';
+  $('a-staff-rev-pct').textContent = totalRev > 0 ? pct((staffRev / totalRev) * 100) : '0%';
+  
+  // Item-level staff table - sorted by staff %
+  const itemTable = $('a-item-table');
+  if (itemTable) {
+    const itemArr = Object.entries(itemStaffStats).map(([name, s]) => {
+      const totalQty = s.staffQty + s.guestQty;
+      return {
+        name,
+        totalQty,
+        staffQty: s.staffQty,
+        guestQty: s.guestQty,
+        staffPct: totalQty > 0 ? (s.staffQty / totalQty) * 100 : 0,
+        staffRev: s.staffRev,
+        guestRev: s.guestRev
+      };
+    }).sort((a, b) => b.staffPct - a.staffPct);
+    
+    itemTable.innerHTML = itemArr.map(i => {
+      const pctColor = i.staffPct >= 70 ? 'var(--red)' : i.staffPct >= 40 ? 'var(--warn)' : 'var(--green)';
+      return '<tr>' +
+        '<td style="font-weight:600;">' + i.name + '</td>' +
+        '<td>' + i.totalQty + '</td>' +
+        '<td><span class="badge b-blue">' + i.staffQty + '</span></td>' +
+        '<td><span class="badge b-green">' + i.guestQty + '</span></td>' +
+        '<td style="font-weight:700;color:' + pctColor + ';">' + pct(i.staffPct) + '</td>' +
+        '<td style="color:var(--blue);">' + fmt(i.staffRev) + '</td>' +
+        '<td style="color:var(--green);">' + fmt(i.guestRev) + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+  
+  // Day of week chart
+  const dowGrid = $('dow-grid');
+  if (dowGrid) {
+    const maxDow = Math.max(...Object.values(dowStats), 1);
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dowGrid.innerHTML = dayNames.map((name, i) => {
+      const val = dowStats[i];
+      const pct = (val / maxDow) * 100;
+      return '<div class="dow-col">' +
+        '<div class="dow-label">' + name + '</div>' +
+        '<div class="dow-bar"><div class="dow-fill" style="height:' + pct + '%;"></div></div>' +
+        '<div class="dow-val">' + fmt(val) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+}
+
+// ============================================================
+// MANAGE ITEMS RENDERING
+// ============================================================
+function renderManage() {
+  const list = $('manage-list');
+  if (!list) return;
+
+  if (items.length === 0) {
+    list.innerHTML = '<p style="color:var(--text2);font-size:12px;padding:12px 0;">No items yet.</p>';
+    return;
+  }
+
+  list.innerHTML = items.map(function(i) {
+    const margin = i.price > 0 && i.cost > 0 ? Math.round(((i.price - i.cost) / i.price) * 100) : 0;
+    const marginColor = margin >= 60 ? 'var(--green)' : margin >= 50 ? 'var(--gold)' : 'var(--red)';
+    const rec = recipes[i.fid] || [];
+    const recipeInfo = i.useRecipe ? (rec.length + ' ingredients') : (i.stockName || 'No stock link');
+    
+    return '<div class="ing-row">' +
+      '<span class="ing-name">' + i.name + (i.hidden ? ' <span style="color:var(--text2);">(hidden)</span>' : '') + '</span>' +
+      '<span class="badge b-gray">' + i.category + '</span>' +
+      '<span class="ing-detail" style="font-weight:600;color:var(--green);">' + fmt(i.price) + '</span>' +
+      '<span class="ing-detail">Cost: ' + fmt(i.cost || 0) + '</span>' +
+      '<span class="ing-detail" style="color:' + marginColor + ';font-weight:600;">' + margin + '%</span>' +
+      '<span class="ing-detail" style="font-size:10px;">' + recipeInfo + '</span>' +
+      '<button class="btn btn-sm" data-edititem="' + i.fid + '">Edit</button>' +
+      '<button class="btn btn-sm" data-togglehide="' + i.fid + '">' + (i.hidden ? 'Show' : 'Hide') + '</button>' +
+    '</div>';
+  }).join('');
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(html) {
+  $('modal-container').innerHTML = '<div class="modal-bg" id="modal-bg">' + html + '</div>';
+}
+
+function closeModal() {
+  $('modal-container').innerHTML = '';
+}
+
+// Restock modal
+function openRestock(stockId) {
+  currentRestockId = stockId;
+  const si = stockItems.find(function(s) { return s.fid === stockId; });
+  if (!si) return;
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Restock: ' + si.name + '</div>' +
+    '<div class="form-group"><label>Quantity to add (' + si.unit + ')</label><input type="number" id="restock-qty" min="0" step="any"></div>' +
+    '<div class="form-group"><label>Total cost paid ($)</label><input type="number" id="restock-cost" min="0" step="0.01"></div>' +
+    '<div class="form-group"><label>Vendor</label>' +
+      '<select id="restock-vendor">' +
+        '<option value="Ben E. Keith">Ben E. Keith</option>' +
+        '<option value="Sam\'s Club">Sam\'s Club</option>' +
+        '<option value="Walmart">Walmart</option>' +
+        '<option value="Other">Other</option>' +
+      '</select>' +
+    '</div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-save">Add Stock</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function saveRestock() {
+  const qty = parseFloat($('restock-qty') ? $('restock-qty').value : 0) || 0;
+  const cost = parseFloat($('restock-cost') ? $('restock-cost').value : 0) || 0;
+  const vendor = $('restock-vendor') ? $('restock-vendor').value : 'Other';
+  if (qty <= 0) return;
+
+  try {
+    // Update stock quantity and totals
+    await db.collection('stockItems').doc(currentRestockId).update({
+      qty: firebase.firestore.FieldValue.increment(qty),
+      totalSpent: firebase.firestore.FieldValue.increment(cost),
+      totalQtyAdded: firebase.firestore.FieldValue.increment(qty)
+    });
+    
+    // Save restock history
+    await db.collection('restockHistory').add({
+      stockId: currentRestockId,
+      stockName: stockItems.find(function(s) { return s.fid === currentRestockId; }).name,
+      qty: qty,
+      cost: cost,
+      vendor: vendor,
+      date: firebase.firestore.Timestamp.now()
+    });
+    
+    showToast('Stock updated!');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error updating stock');
+  }
+}
+
+// Edit stock item modal
+function openEditStock(stockId) {
+  const si = stockItems.find(function(s) { return s.fid === stockId; });
+  if (!si) return;
+  const avgCost = si.totalSpent && si.totalQtyAdded ? (si.totalSpent / si.totalQtyAdded) : 0;
+  const currentCost = si.costPerUnit != null ? si.costPerUnit : '';
+  const vendorOptions = ['Ben E. Keith', 'Sam\'s Club', 'Walmart', 'Other'].map(function(v) {
+    return '<option value="' + v + '"' + (si.vendor === v ? ' selected' : '') + '>' + v + '</option>';
+  }).join('');
+  
+  // Get restock history for this item
+  const history = restockHistory.filter(function(r) { return r.stockId === stockId; })
+    .sort(function(a, b) { 
+      const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
+      const db = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date);
+      return db - da; 
+    })
+    .slice(0, 5);
+  
+  let historyHTML = '';
+  if (history.length > 0) {
+    historyHTML = '<div class="modal-section"><div class="modal-section-title">Recent Restocks</div>' +
+      history.map(function(r) {
+        const d = r.date && r.date.toDate ? r.date.toDate() : new Date(r.date);
+        return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--gray);">' +
+          '<span>' + d.toLocaleDateString() + '</span>' +
+          '<span style="font-weight:600;">+' + r.qty + '</span>' +
+          '<span>' + fmt(r.cost) + '</span>' +
+          '<span class="badge b-gray">' + (r.vendor || 'Unknown') + '</span>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }
+  
+  openModal('<div class="modal modal-wide">' +
+    '<div class="modal-title">Edit: ' + si.name + '</div>' +
+    '<div class="form-group"><label>Name</label><input type="text" id="edit-stock-name" value="' + si.name + '"></div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Unit (e.g. each, oz, slice)</label><input type="text" id="edit-stock-unit" value="' + si.unit + '"></div>' +
+      '<div class="form-group"><label>Current Qty</label><input type="number" id="edit-stock-qty" value="' + si.qty + '" step="any"></div>' +
+    '</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group">' +
+        '<label>Cost per ' + si.unit + ' ($)</label>' +
+        '<input type="number" id="edit-stock-cost" value="' + currentCost + '" step="0.001" min="0" placeholder="' + (avgCost > 0 ? 'Avg: $' + avgCost.toFixed(3) : 'Enter cost') + '">' +
+      '</div>' +
+      '<div class="form-group"><label>Primary Vendor</label><select id="edit-stock-vendor">' + vendorOptions + '</select></div>' +
+    '</div>' +
+    '<p style="font-size:11px;color:var(--text2);margin-bottom:12px;">Leave cost blank to use weighted average from restocks' + (avgCost > 0 ? ' ($' + avgCost.toFixed(3) + ')' : '') + '</p>' +
+    historyHTML +
+    '<div class="modal-footer">' +
+      '<button class="btn btn-red" id="modal-delete-stock" data-id="' + stockId + '">Delete</button>' +
+      '<div style="flex:1"></div>' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-update-stock" data-id="' + stockId + '">Save Changes</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function saveEditStock(stockId) {
+  const name = $('edit-stock-name') ? $('edit-stock-name').value.trim() : '';
+  const unit = $('edit-stock-unit') ? $('edit-stock-unit').value.trim() : 'each';
+  const qty = parseFloat($('edit-stock-qty') ? $('edit-stock-qty').value : 0) || 0;
+  const costInput = $('edit-stock-cost') ? $('edit-stock-cost').value.trim() : '';
+  const costPerUnit = costInput !== '' ? parseFloat(costInput) : null;
+  const vendor = $('edit-stock-vendor') ? $('edit-stock-vendor').value : '';
+  if (!name) return;
+
+  try {
+    const updateData = { name: name, unit: unit, qty: qty, vendor: vendor };
+    if (costPerUnit !== null) {
+      updateData.costPerUnit = costPerUnit;
+    } else {
+      updateData.costPerUnit = firebase.firestore.FieldValue.delete();
+    }
+    await db.collection('stockItems').doc(stockId).update(updateData);
+    showToast('Stock item updated!');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error updating stock');
+  }
+}
+
+async function deleteStock(stockId) {
+  if (!confirm('Delete this stock item? This cannot be undone.')) return;
+  try {
+    await db.collection('stockItems').doc(stockId).delete();
+    showToast('Stock item deleted');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error deleting');
+  }
+}
+
+// Add stock item modal
+function openAddStock() {
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Add Stock Item</div>' +
+    '<div class="form-group"><label>Name</label><input type="text" id="stock-name"></div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Unit (e.g. each, oz, slice)</label><input type="text" id="stock-unit" value="each"></div>' +
+      '<div class="form-group"><label>Starting qty</label><input type="number" id="stock-qty" min="0" step="any" value="0"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Cost per unit ($)</label><input type="number" id="stock-cost" min="0" step="0.001" placeholder="e.g. 0.59 for hot dogs"><p style="font-size:11px;color:var(--text2);margin-top:4px;">Optional — you can also set this later via Edit</p></div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-save-stock">Add Item</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function saveAddStock() {
+  const name = $('stock-name') ? $('stock-name').value.trim() : '';
+  const unit = $('stock-unit') ? $('stock-unit').value.trim() : 'each';
+  const qty = parseFloat($('stock-qty') ? $('stock-qty').value : 0) || 0;
+  const costInput = $('stock-cost') ? $('stock-cost').value.trim() : '';
+  const costPerUnit = costInput !== '' ? parseFloat(costInput) : null;
+  if (!name) return;
+
+  try {
+    const newItem = { name: name, unit: unit, qty: qty, totalSpent: 0, totalQtyAdded: qty };
+    if (costPerUnit !== null) {
+      newItem.costPerUnit = costPerUnit;
+    }
+    await db.collection('stockItems').add(newItem);
+    showToast('Stock item added!');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error adding stock');
+  }
+}
+
+// Inventory Adjustment modal
+function openAdjustmentModal() {
+  const stockOpts = stockItems.map(function(s) {
+    return '<option value="' + s.fid + '">' + s.name + ' (current: ' + s.qty + ' ' + s.unit + ')</option>';
+  }).join('');
+  
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Inventory Adjustment</div>' +
+    '<p style="font-size:12px;color:var(--text2);margin-bottom:16px;">Use this when physical count doesn\'t match the system. Can be positive (found extra) or negative (count was off).</p>' +
+    '<div class="form-group"><label>Stock Item</label><select id="adjust-stock">' + stockOpts + '</select></div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Adjustment (+/-)</label><input type="number" id="adjust-qty" step="any" placeholder="e.g. -2 or +5"></div>' +
+      '<div class="form-group"><label>Reason</label>' +
+        '<select id="adjust-reason">' +
+          '<option value="Physical count correction">Physical count correction</option>' +
+          '<option value="Found extra stock">Found extra stock</option>' +
+          '<option value="Inventory audit">Inventory audit</option>' +
+          '<option value="Other">Other</option>' +
+        '</select>' +
+      '</div>' +
+    '</div>' +
+    '<div class="form-group" id="adjust-notes-group">' +
+      '<label>Notes (optional)</label><input type="text" id="adjust-notes" placeholder="Any additional details">' +
+    '</div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-save-adjustment">Save Adjustment</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function saveAdjustment() {
+  const stockId = $('adjust-stock') ? $('adjust-stock').value : '';
+  const qty = parseFloat($('adjust-qty') ? $('adjust-qty').value : 0);
+  const reason = $('adjust-reason') ? $('adjust-reason').value : '';
+  const notes = $('adjust-notes') ? $('adjust-notes').value.trim() : '';
+  
+  if (!stockId || qty === 0 || isNaN(qty)) {
+    showToast('Enter an adjustment amount');
+    return;
+  }
+  
+  const si = stockItems.find(function(s) { return s.fid === stockId; });
+  if (!si) return;
+
+  try {
+    // Update stock quantity
+    await db.collection('stockItems').doc(stockId).update({
+      qty: firebase.firestore.FieldValue.increment(qty)
+    });
+    
+    // Log the adjustment
+    await db.collection('adjustments').add({
+      stockId: stockId,
+      stockName: si.name,
+      qty: qty,
+      reason: reason,
+      notes: notes,
+      date: firebase.firestore.Timestamp.now()
+    });
+    
+    const direction = qty > 0 ? '+' : '';
+    showToast('Adjusted ' + si.name + ': ' + direction + qty + ' ' + si.unit);
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error saving adjustment');
+  }
+}
+
+// Waste modal
+function openWasteModal() {
+  const itemOpts = items.filter(function(i) { return !i.hidden; }).map(function(i) {
+    return '<option value="' + i.fid + '">' + i.name + '</option>';
+  }).join('');
+  const stockOpts = stockItems.map(function(s) {
+    return '<option value="' + s.fid + '">' + s.name + ' (' + s.unit + ')</option>';
+  }).join('');
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Log Waste</div>' +
+    '<div class="form-group"><label>Waste Type</label>' +
+      '<select id="waste-type" onchange="toggleWasteType()">' +
+        '<option value="item">Menu Item (finished product)</option>' +
+        '<option value="stock">Stock/Ingredient (raw)</option>' +
+      '</select>' +
+    '</div>' +
+    '<div id="waste-item-section">' +
+      '<div class="form-group"><label>Menu Item</label><select id="waste-item">' + itemOpts + '</select></div>' +
+      '<div class="form-group"><label>Quantity</label><input type="number" id="waste-qty" min="1" value="1"></div>' +
+    '</div>' +
+    '<div id="waste-stock-section" style="display:none;">' +
+      '<div class="form-group"><label>Stock Item</label><select id="waste-stock">' + stockOpts + '</select></div>' +
+      '<div class="form-group"><label>Amount</label><input type="number" id="waste-stock-qty" min="0" step="any" value="1"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Reason</label>' +
+      '<select id="waste-reason" onchange="toggleWasteOther()">' +
+        '<option value="Expired">Expired</option>' +
+        '<option value="Dropped">Dropped</option>' +
+        '<option value="Correction">Correction</option>' +
+        '<option value="Other">Other</option>' +
+      '</select>' +
+    '</div>' +
+    '<div class="form-group" id="waste-other-group" style="display:none;">' +
+      '<label>Other Reason</label><input type="text" id="waste-other" placeholder="Describe reason">' +
+    '</div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-red" id="modal-save-waste">Log Waste</button>' +
+    '</div>' +
+  '</div>');
+}
+
+function toggleWasteOther() {
+  const reason = $('waste-reason') ? $('waste-reason').value : '';
+  const otherGroup = $('waste-other-group');
+  if (otherGroup) otherGroup.style.display = reason === 'Other' ? 'block' : 'none';
+}
+
+function toggleWasteType() {
+  const type = $('waste-type') ? $('waste-type').value : 'item';
+  $('waste-item-section').style.display = type === 'item' ? 'block' : 'none';
+  $('waste-stock-section').style.display = type === 'stock' ? 'block' : 'none';
+}
+
+async function saveWaste() {
+  const wasteType = $('waste-type') ? $('waste-type').value : 'item';
+  let reason = $('waste-reason') ? $('waste-reason').value : 'Expired';
+  if (reason === 'Other') {
+    reason = $('waste-other') ? $('waste-other').value.trim() : 'Other';
+  }
+
+  try {
+    if (wasteType === 'item') {
+      const itemId = $('waste-item') ? $('waste-item').value : '';
+      const qty = parseInt($('waste-qty') ? $('waste-qty').value : 1) || 1;
+      const item = items.find(function(i) { return i.fid === itemId; });
+      if (!item) return;
+
+      // Calculate value properly from stock costs
+      let wasteValue = 0;
+      if (item.useRecipe) {
+        const rec = recipes[item.fid] || [];
+        for (const ing of rec) {
+          const si = stockItems.find(function(s) { return s.fid === ing.stockId; });
+          if (si) {
+            const ingCost = si.costPerUnit != null ? si.costPerUnit : (si.totalSpent && si.totalQtyAdded ? si.totalSpent / si.totalQtyAdded : 0);
+            wasteValue += ingCost * ing.qty;
+          }
+        }
+        wasteValue *= qty;
+      } else {
+        const si = stockItems.find(function(s) { return s.name === item.stockName; });
+        if (si) {
+          const itemCost = si.costPerUnit != null ? si.costPerUnit : (si.totalSpent && si.totalQtyAdded ? si.totalSpent / si.totalQtyAdded : 0);
+          wasteValue = itemCost * qty;
+        } else {
+          wasteValue = (item.cost || 0) * qty;
+        }
+      }
+
+      await db.collection('waste').add({
+        itemId: itemId,
+        itemName: item.name,
+        qty: qty,
+        value: wasteValue,
+        reason: reason,
+        date: firebase.firestore.Timestamp.now(),
+        type: 'item'
+      });
+
+      if (!item.useRecipe) {
+        const si = stockItems.find(function(s) { return s.name === item.stockName; });
+        if (si) await db.collection('stockItems').doc(si.fid).update({ qty: firebase.firestore.FieldValue.increment(-qty) });
+      } else {
+        const rec = recipes[item.fid] || [];
+        for (const ing of rec) {
+          await db.collection('stockItems').doc(ing.stockId).update({ qty: firebase.firestore.FieldValue.increment(-Math.abs(ing.qty) * qty) });
+        }
+      }
+    } else {
+      const stockId = $('waste-stock') ? $('waste-stock').value : '';
+      const qty = parseFloat($('waste-stock-qty') ? $('waste-stock-qty').value : 1) || 1;
+      const si = stockItems.find(function(s) { return s.fid === stockId; });
+      if (!si) return;
+
+      const unitCost = si.costPerUnit != null ? si.costPerUnit : (si.totalSpent && si.totalQtyAdded ? si.totalSpent / si.totalQtyAdded : 0);
+
+      await db.collection('waste').add({
+        stockId: stockId,
+        itemName: si.name + ' (' + qty + ' ' + si.unit + ')',
+        qty: qty,
+        value: unitCost * qty,
+        reason: reason,
+        date: firebase.firestore.Timestamp.now(),
+        type: 'stock'
+      });
+
+      await db.collection('stockItems').doc(stockId).update({ qty: firebase.firestore.FieldValue.increment(-qty) });
+    }
+
+    showToast('Waste logged');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error logging waste');
+  }
+}
+
+// Edit waste entry modal
+function openEditWaste(wasteId) {
+  const w = wasteLog.find(function(x) { return x.fid === wasteId; });
+  if (!w) return;
+  
+  const isStandardReason = ['Expired', 'Dropped', 'Correction'].includes(w.reason);
+  const reasonOptions = ['Expired', 'Dropped', 'Correction', 'Other'].map(function(r) {
+    const selected = (w.reason === r) || (!isStandardReason && r === 'Other');
+    return '<option value="' + r + '"' + (selected ? ' selected' : '') + '>' + r + '</option>';
+  }).join('');
+  
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Edit Waste Entry</div>' +
+    '<div class="form-group"><label>Item</label><input type="text" value="' + w.itemName + '" disabled style="background:var(--gray);"></div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Quantity</label><input type="number" id="edit-waste-qty" value="' + w.qty + '" min="0" step="any"></div>' +
+      '<div class="form-group"><label>Value ($)</label><input type="number" id="edit-waste-value" value="' + (w.value || 0).toFixed(2) + '" min="0" step="0.01"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Reason</label>' +
+      '<select id="edit-waste-reason" onchange="toggleEditWasteOther()">' + reasonOptions + '</select>' +
+    '</div>' +
+    '<div class="form-group" id="edit-waste-other-group"' + (isStandardReason ? ' style="display:none;"' : '') + '>' +
+      '<label>Other Reason</label><input type="text" id="edit-waste-other" value="' + (isStandardReason ? '' : (w.reason || '')) + '">' +
+    '</div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn btn-red" id="modal-delete-waste" data-id="' + wasteId + '">Delete</button>' +
+      '<div style="flex:1"></div>' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-update-waste" data-id="' + wasteId + '">Save Changes</button>' +
+    '</div>' +
+  '</div>');
+}
+
+function toggleEditWasteOther() {
+  const reason = $('edit-waste-reason') ? $('edit-waste-reason').value : '';
+  const otherGroup = $('edit-waste-other-group');
+  if (otherGroup) otherGroup.style.display = reason === 'Other' ? 'block' : 'none';
+}
+
+async function saveEditWaste(wasteId) {
+  const qty = parseFloat($('edit-waste-qty') ? $('edit-waste-qty').value : 0) || 0;
+  const value = parseFloat($('edit-waste-value') ? $('edit-waste-value').value : 0) || 0;
+  let reason = $('edit-waste-reason') ? $('edit-waste-reason').value : 'Expired';
+  if (reason === 'Other') {
+    reason = $('edit-waste-other') ? $('edit-waste-other').value.trim() : 'Other';
+  }
+
+  try {
+    await db.collection('waste').doc(wasteId).update({
+      qty: qty,
+      value: value,
+      reason: reason
+    });
+    showToast('Waste entry updated');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error updating waste');
+  }
+}
+
+async function deleteWaste(wasteId) {
+  const w = wasteLog.find(function(x) { return x.fid === wasteId; });
+  if (!w) {
+    showToast('Waste entry not found');
+    return;
+  }
+  
+  if (!confirm('Delete this waste entry?\n\n' + w.itemName + ' (' + w.qty + ')\n\nInventory will be restored.')) return;
+  
+  try {
+    // Restore inventory based on waste type
+    if (w.type === 'stock' && w.stockId) {
+      // Raw stock waste - restore directly to stock item
+      await db.collection('stockItems').doc(w.stockId).update({ 
+        qty: firebase.firestore.FieldValue.increment(w.qty) 
+      });
+    } else if (w.itemId) {
+      // Menu item waste - restore based on item's recipe or stock link
+      const item = items.find(function(i) { return i.fid === w.itemId; });
+      if (item) {
+        if (!item.useRecipe) {
+          // Simple item - restore to linked stock
+          const si = stockItems.find(function(s) { return s.name === item.stockName; });
+          if (si) {
+            await db.collection('stockItems').doc(si.fid).update({ 
+              qty: firebase.firestore.FieldValue.increment(w.qty) 
+            });
+          }
+        } else {
+          // Recipe-based item - restore each ingredient
+          const rec = recipes[item.fid] || [];
+          for (const ing of rec) {
+            await db.collection('stockItems').doc(ing.stockId).update({ 
+              qty: firebase.firestore.FieldValue.increment(ing.qty * w.qty) 
+            });
+          }
+        }
+      }
+    }
+    
+    // Delete the waste entry
+    await db.collection('waste').doc(wasteId).delete();
+    showToast('Waste deleted - inventory restored');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error deleting waste');
+  }
+}
+
+// Edit Menu Item modal
+function openEditItem(itemId) {
+  const item = items.find(function(i) { return i.fid === itemId; });
+  if (!item) return;
+  
+  const catOptions = ['Food', 'Drinks', 'Snacks', 'Custom'].map(function(c) {
+    return '<option value="' + c + '"' + (item.category === c ? ' selected' : '') + '>' + c + '</option>';
+  }).join('');
+  
+  const stockOptions = '<option value="">-- None --</option>' + stockItems.map(function(s) {
+    return '<option value="' + s.name + '"' + (item.stockName === s.name ? ' selected' : '') + '>' + s.name + '</option>';
+  }).join('');
+
+  const rec = recipes[itemId] || [];
+  
+  let recipeHTML = '<div class="modal-section" id="recipe-section"' + (!item.useRecipe ? ' style="display:none;"' : '') + '>' +
+    '<div class="modal-section-title">Recipe Ingredients</div>' +
+    '<div id="recipe-list">' + buildRecipeRows(rec) + '</div>' +
+    '<div style="margin-top:10px;display:flex;gap:8px;align-items:flex-end;">' +
+      '<div style="flex:1;"><label>Add Ingredient</label><select id="add-ing-stock" onchange="updateQtyLabel()">' + 
+        stockItems.map(function(s) { return '<option value="' + s.fid + '" data-unit="' + s.unit + '">' + s.name + ' ($' + getIngCost(s).toFixed(2) + '/' + s.unit + ')</option>'; }).join('') +
+      '</select></div>' +
+      '<div style="width:100px;"><label id="qty-label">Qty (' + (stockItems[0] ? stockItems[0].unit : 'each') + ')</label><input type="number" id="add-ing-qty" value="1" min="0" step="any"></div>' +
+      '<button class="btn btn-sm btn-green" id="add-ing-btn" data-itemid="' + itemId + '">+ Add</button>' +
+    '</div>' +
+    '<div style="margin-top:12px;">' +
+      '<button class="btn btn-sm btn-gold" id="calc-cost-btn">🔄 Auto-Calculate Cost from Recipe</button>' +
+    '</div>' +
+  '</div>';
+
+  openModal('<div class="modal modal-wide">' +
+    '<div class="modal-title">Edit: ' + item.name + '</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Name</label><input type="text" id="edit-item-name" value="' + item.name + '"></div>' +
+      '<div class="form-group"><label>Category</label><select id="edit-item-cat">' + catOptions + '</select></div>' +
+    '</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Price ($)</label><input type="number" id="edit-item-price" value="' + (item.price || 0) + '" step="0.01" min="0"></div>' +
+      '<div class="form-group"><label>Est. Cost ($)</label><input type="number" id="edit-item-cost" value="' + (item.cost || 0) + '" step="0.01" min="0"></div>' +
+    '</div>' +
+    '<div class="form-group cb-row"><input type="checkbox" id="edit-item-recipe"' + (item.useRecipe ? ' checked' : '') + ' onchange="toggleRecipeSection()"><label>Uses Recipe (multiple ingredients)</label></div>' +
+    '<div id="edit-stock-link-section"' + (item.useRecipe ? ' style="display:none;"' : '') + '>' +
+      '<div class="form-group"><label>Links to Stock Item (for simple items)</label><select id="edit-item-stock">' + stockOptions + '</select></div>' +
+    '</div>' +
+    recipeHTML +
+    '<div class="modal-footer">' +
+      '<button class="btn btn-red" id="modal-delete-item" data-id="' + itemId + '">Delete Item</button>' +
+      '<div style="flex:1"></div>' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-update-item" data-id="' + itemId + '">Save Changes</button>' +
+    '</div>' +
+  '</div>');
+  
+  window.tempRecipe = JSON.parse(JSON.stringify(rec));
+  window.editingItemId = itemId;
+}
+
+function buildRecipeRows(rec) {
+  if (!rec || rec.length === 0) {
+    return '<p style="color:var(--text2);font-size:12px;padding:8px 0;">No ingredients yet. Add some below.</p>';
+  }
+  return rec.map(function(ing, idx) {
+    const si = stockItems.find(function(s) { return s.fid === ing.stockId; });
+    const costPerUnit = getIngCost(si);
+    const ingCost = costPerUnit * ing.qty;
+    return '<div class="recipe-row">' +
+      '<span style="font-weight:600;">' + (si ? si.name : 'Unknown') + '</span>' +
+      '<span style="color:var(--text2);">' + ing.qty + ' ' + (si ? si.unit : '') + '</span>' +
+      '<span style="color:var(--green);font-size:11px;">~' + fmt(ingCost) + '</span>' +
+      '<button class="rm-btn" data-idx="' + idx + '">×</button>' +
+    '</div>';
+  }).join('');
+}
+
+function getIngCost(si) {
+  if (!si) return 0;
+  if (si.costPerUnit != null) return si.costPerUnit;
+  if (si.totalSpent && si.totalQtyAdded) return si.totalSpent / si.totalQtyAdded;
+  return 0;
+}
+
+function updateQtyLabel() {
+  const sel = $('add-ing-stock');
+  if (!sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  const unit = opt ? opt.getAttribute('data-unit') : 'each';
+  const label = $('qty-label');
+  if (label) label.textContent = 'Qty (' + unit + ')';
+}
+
+function toggleRecipeSection() {
+  const useRecipe = $('edit-item-recipe') ? $('edit-item-recipe').checked : false;
+  const recipeSection = $('recipe-section');
+  const stockSection = $('edit-stock-link-section');
+  if (recipeSection) recipeSection.style.display = useRecipe ? 'block' : 'none';
+  if (stockSection) stockSection.style.display = useRecipe ? 'none' : 'block';
+}
+
+function addIngredientToRecipe(itemId) {
+  const stockId = $('add-ing-stock') ? $('add-ing-stock').value : '';
+  const qty = parseFloat($('add-ing-qty') ? $('add-ing-qty').value : 1) || 1;
+  if (!stockId || qty <= 0) return;
+  
+  const existing = window.tempRecipe.find(function(ing) { return ing.stockId === stockId; });
+  if (existing) {
+    existing.qty += qty;
+  } else {
+    window.tempRecipe.push({ stockId: stockId, qty: qty });
+  }
+  
+  $('recipe-list').innerHTML = buildRecipeRows(window.tempRecipe);
+  $('add-ing-qty').value = '1';
+}
+
+function removeIngredientFromRecipe(idx) {
+  window.tempRecipe.splice(idx, 1);
+  $('recipe-list').innerHTML = buildRecipeRows(window.tempRecipe);
+}
+
+function calcCostFromRecipe() {
+  let totalCost = 0;
+  window.tempRecipe.forEach(function(ing) {
+    const si = stockItems.find(function(s) { return s.fid === ing.stockId; });
+    totalCost += getIngCost(si) * ing.qty;
+  });
+  $('edit-item-cost').value = totalCost.toFixed(2);
+  showToast('Cost calculated: ' + fmt(totalCost));
+}
+
+async function saveEditItem(itemId) {
+  const name = $('edit-item-name') ? $('edit-item-name').value.trim() : '';
+  const category = $('edit-item-cat') ? $('edit-item-cat').value : 'Food';
+  const price = parseFloat($('edit-item-price') ? $('edit-item-price').value : 0) || 0;
+  const cost = parseFloat($('edit-item-cost') ? $('edit-item-cost').value : 0) || 0;
+  const useRecipe = $('edit-item-recipe') ? $('edit-item-recipe').checked : false;
+  const stockName = $('edit-item-stock') ? $('edit-item-stock').value : '';
+  
+  if (!name) return;
+
+  try {
+    await db.collection('items').doc(itemId).update({
+      name: name,
+      category: category,
+      price: price,
+      cost: cost,
+      useRecipe: useRecipe,
+      stockName: stockName
+    });
+    
+    if (useRecipe && window.tempRecipe) {
+      await db.collection('recipes').doc(itemId).set({ ingredients: window.tempRecipe });
+    }
+    
+    showToast('Item updated!');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error updating item');
+  }
+}
+
+async function deleteItem(itemId) {
+  if (!confirm('Delete this menu item? This cannot be undone.')) return;
+  try {
+    await db.collection('items').doc(itemId).delete();
+    if (recipes[itemId]) {
+      await db.collection('recipes').doc(itemId).delete();
+    }
+    showToast('Item deleted');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error deleting');
+  }
+}
+
+// Add Menu Item modal
+function openAddItem() {
+  const catOptions = ['Food', 'Drinks', 'Snacks', 'Custom'].map(function(c) {
+    return '<option value="' + c + '">' + c + '</option>';
+  }).join('');
+  
+  const stockOptions = stockItems.map(function(s) {
+    return '<option value="' + s.name + '">' + s.name + '</option>';
+  }).join('');
+
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Add Menu Item</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Name</label><input type="text" id="add-item-name"></div>' +
+      '<div class="form-group"><label>Category</label><select id="add-item-cat">' + catOptions + '</select></div>' +
+    '</div>' +
+    '<div class="grid2">' +
+      '<div class="form-group"><label>Price ($)</label><input type="number" id="add-item-price" value="0" step="0.01" min="0"></div>' +
+      '<div class="form-group"><label>Est. Cost ($)</label><input type="number" id="add-item-cost" value="0" step="0.01" min="0"></div>' +
+    '</div>' +
+    '<div class="form-group cb-row"><input type="checkbox" id="add-item-recipe"><label>Uses Recipe</label></div>' +
+    '<div class="form-group"><label>Links to Stock Item</label><select id="add-item-stock"><option value="">-- None --</option>' + stockOptions + '</select></div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-green" id="modal-save-item">Add Item</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function saveAddItem() {
+  const name = $('add-item-name') ? $('add-item-name').value.trim() : '';
+  const category = $('add-item-cat') ? $('add-item-cat').value : 'Food';
+  const price = parseFloat($('add-item-price') ? $('add-item-price').value : 0) || 0;
+  const cost = parseFloat($('add-item-cost') ? $('add-item-cost').value : 0) || 0;
+  const useRecipe = $('add-item-recipe') ? $('add-item-recipe').checked : false;
+  const stockName = $('add-item-stock') ? $('add-item-stock').value : '';
+  
+  if (!name) return;
+
+  try {
+    await db.collection('items').add({
+      name: name,
+      category: category,
+      price: price,
+      cost: cost,
+      useRecipe: useRecipe,
+      stockName: stockName,
+      hidden: false
+    });
+    showToast('Item added!');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error adding item');
+  }
+}
+
+// Export CSV
+function exportCSV() {
+  const filtered = getFilteredTransactions('report-range');
+
+  let csv = 'Date,Time,Items,Pay Type,Staff,Discount,Total,Cost,Profit\n';
+  filtered.forEach(function(t) {
+    const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+    const date = d.toLocaleDateString();
+    const time = d.toLocaleTimeString();
+    const itemStr = (t.items || []).map(function(i) { return i.qty + 'x ' + i.name; }).join('; ');
+    const isStaff = t.isStaff || t.payType === 'staffCash' || t.payType === 'staffCard';
+    const hasDiscount = t.staffDiscount > 0 || (t.items || []).some(i => i.isDiscountItem);
+    const profit = (t.total || 0) - (t.totalCost || 0);
+    csv += '"' + date + '","' + time + '","' + itemStr + '","' + t.payType + '","' + (isStaff ? 'Yes' : 'No') + '","' + (hasDiscount ? 'Yes' : 'No') + '",' + (t.total ? t.total.toFixed(2) : 0) + ',' + (t.totalCost ? t.totalCost.toFixed(2) : 0) + ',' + profit.toFixed(2) + '\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const range = $('report-range') ? $('report-range').value : 'all';
+  a.download = 'tcwr-report-' + range + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Void transaction - shows modal with reason selection
+function openVoidModal(txnId) {
+  const txn = transactions.find(function(t) { return t.fid === txnId; });
+  if (!txn) {
+    showToast('Transaction not found');
+    return;
+  }
+  
+  const d = txn.date && txn.date.toDate ? txn.date.toDate() : new Date(txn.date);
+  const itemStr = (txn.items || []).map(function(i) { return i.qty + '× ' + i.name; }).join(', ');
+  
+  openModal('<div class="modal">' +
+    '<div class="modal-title">Void Transaction</div>' +
+    '<div style="background:var(--red-light);border-radius:8px;padding:12px;margin-bottom:16px;">' +
+      '<div style="font-weight:600;color:var(--red);margin-bottom:4px;">⚠️ This will restore inventory and remove from sales</div>' +
+      '<div style="font-size:12px;color:var(--text2);">' + d.toLocaleDateString() + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + '</div>' +
+      '<div style="font-size:12px;margin-top:4px;">' + itemStr + '</div>' +
+      '<div style="font-weight:700;margin-top:4px;">Total: ' + fmt(txn.total) + '</div>' +
+    '</div>' +
+    '<div class="form-group"><label>Reason for Voiding</label>' +
+      '<select id="void-reason">' +
+        '<option value="Wrong Item">Wrong Item</option>' +
+        '<option value="Customer Changed Mind">Customer Changed Mind</option>' +
+        '<option value="Test Transaction">Test Transaction</option>' +
+        '<option value="Other">Other</option>' +
+      '</select>' +
+    '</div>' +
+    '<div class="modal-footer">' +
+      '<button class="btn" id="modal-cancel">Cancel</button>' +
+      '<button class="btn btn-red" id="modal-confirm-void" data-id="' + txnId + '">Void Transaction</button>' +
+    '</div>' +
+  '</div>');
+}
+
+async function voidTransaction(txnId) {
+  const txn = transactions.find(function(t) { return t.fid === txnId; });
+  if (!txn) {
+    showToast('Transaction not found');
+    return;
+  }
+
+  const voidReason = $('void-reason') ? $('void-reason').value : 'Unknown';
+
+  try {
+    // Restore inventory for each item
+    for (const o of txn.items) {
+      const item = items.find(function(i) { return i.fid === o.fid; });
+      if (!item) continue;
+      
+      if (!item.useRecipe) {
+        const si = stockItems.find(function(s) { return s.name === item.stockName; });
+        if (si) {
+          await db.collection('stockItems').doc(si.fid).update({ 
+            qty: firebase.firestore.FieldValue.increment(o.qty) 
+          });
+        }
+      } else {
+        const rec = recipes[item.fid] || [];
+        for (const ing of rec) {
+          await db.collection('stockItems').doc(ing.stockId).update({ 
+            qty: firebase.firestore.FieldValue.increment(ing.qty * o.qty) 
+          });
+        }
+      }
+    }
+
+    // Delete the transaction
+    await db.collection('transactions').doc(txnId).delete();
+    
+    showToast('Transaction voided - inventory restored');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    showToast('Error voiding transaction');
+  }
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+document.addEventListener('click', function(e) {
+  const t = e.target;
+
+  // Tabs
+  if (t.classList.contains('tab')) {
+    switchTab(t.dataset.tab);
+  }
+
+  // Category tiles
+  if (t.closest('.cat-tile')) {
+    const tile = t.closest('.cat-tile');
+    setCat(tile.dataset.cat);
+  }
+
+  // Menu items - check for discount items
+  if (t.closest('.menu-btn')) {
+    const btn = t.closest('.menu-btn');
+    if (!btn.classList.contains('mb-disabled')) {
+      const isDiscount = btn.dataset.discount === 'true';
+      addToOrder(btn.dataset.id, isDiscount);
+    }
+  }
+
+  // Order quantity buttons - now uses orderkey
+  if (t.classList.contains('qbtn')) {
+    updateQty(t.dataset.orderkey, parseInt(t.dataset.delta));
+  }
+
+  // Payment buttons
+  if (t.classList.contains('pay-btn')) {
+    selectPay(t.dataset.pay);
+  }
+
+  // Employee discount button
+  if (t.id === 'emp-disc-btn') toggleEmployeeDiscount();
+
+  // Clear button
+  if (t.id === 'clear-btn') clearOrder();
+
+  // Checkout button
+  if (t.id === 'checkout-btn') checkout();
+
+  // Stock buttons
+  if (t.dataset.restock) openRestock(t.dataset.restock);
+  if (t.dataset.editstock) openEditStock(t.dataset.editstock);
+  if (t.id === 'add-stock-btn') openAddStock();
+  if (t.id === 'adjust-stock-btn') openAdjustmentModal();
+  if (t.id === 'modal-save-adjustment') saveAdjustment();
+
+  // Item buttons
+  if (t.dataset.edititem) openEditItem(t.dataset.edititem);
+  if (t.id === 'add-item-btn') openAddItem();
+
+  // Waste buttons
+  if (t.id === 'log-waste-btn') openWasteModal();
+  if (t.dataset.editwaste) openEditWaste(t.dataset.editwaste);
+  if (t.dataset.deletewaste) deleteWaste(t.dataset.deletewaste);
+  if (t.id === 'modal-update-waste') saveEditWaste(t.dataset.id);
+  if (t.id === 'modal-delete-waste') deleteWaste(t.dataset.id);
+
+  // Report buttons
+  if (t.id === 'export-btn') exportCSV();
+  if (t.dataset.sort) sortItems(t.dataset.sort);
+  if (t.dataset.voidtxn) openVoidModal(t.dataset.voidtxn);
+  if (t.id === 'modal-confirm-void') voidTransaction(t.dataset.id);
+  if (t.id === 'apply-dates-btn') {
+    customDateFrom = $('date-from').value;
+    customDateTo = $('date-to').value;
+    renderReports();
+  }
+
+  // Modal buttons
+  if (t.id === 'modal-cancel' || t.id === 'modal-bg') closeModal();
+  if (t.id === 'modal-save') saveRestock();
+  if (t.id === 'modal-save-stock') saveAddStock();
+  if (t.id === 'modal-save-waste') saveWaste();
+  if (t.id === 'modal-save-item') saveAddItem();
+  if (t.id === 'modal-update-stock') saveEditStock(t.dataset.id);
+  if (t.id === 'modal-delete-stock') deleteStock(t.dataset.id);
+  if (t.id === 'modal-update-item') saveEditItem(t.dataset.id);
+  if (t.id === 'modal-delete-item') deleteItem(t.dataset.id);
+  
+  // Recipe editing buttons
+  if (t.id === 'add-ing-btn') addIngredientToRecipe(t.dataset.itemid);
+  if (t.id === 'calc-cost-btn') calcCostFromRecipe();
+  if (t.classList.contains('rm-btn') && t.dataset.idx !== undefined) {
+    removeIngredientFromRecipe(parseInt(t.dataset.idx));
+  }
+
+  // Toggle hide item
+  if (t.dataset.togglehide) {
+    const item = items.find(function(i) { return i.fid === t.dataset.togglehide; });
+    if (item) {
+      db.collection('items').doc(item.fid).update({ hidden: !item.hidden });
+    }
+  }
+});
+
+// Report range change
+if ($('report-range')) {
+  $('report-range').addEventListener('change', renderReports);
+}
+
+// Analytics range change
+if ($('analytics-range')) {
+  $('analytics-range').addEventListener('change', renderAnalytics);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+startListeners();
+</script>
+</body>
+</html>
